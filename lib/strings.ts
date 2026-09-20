@@ -290,6 +290,18 @@ export const strings = {
         },
       },
     },
+    errorBoundary: {
+      title: "Something went wrong on this screen",
+      body: "Your saved entries are safe. Try again, and if it keeps happening, reload the app.",
+      retry: "Try again",
+    },
+    dnbpRequired: {
+      notPublishedTitle: "No Do Not Buy Price has been published yet",
+      notPublishedBody: "Bid Check and Buy Log need today's Do Not Buy Price from the office. Check back once it's been published.",
+      unavailableTitle: "Do Not Buy Price not loaded on this device",
+      unavailableBody: "Bid Check and Buy Log need the Do Not Buy Price. Connect to the internet and open the DNBP tab once — after that they work offline.",
+      openDnbp: "Open DNBP tab",
+    },
     bidCheck: {
       title: "Bid Check",
       speciesLabel: "Species",
@@ -329,6 +341,7 @@ export const strings = {
       costLabel: "Cost",
       save: "Save entry",
       saving: "Saving…",
+      saveHint: "Enter price and weight to check this bid against the Do Not Buy Price and save it.",
       breachReasonLabel: "Reason for breach",
       breachReasons: ["Quality premium", "Volume fill", "Market short", "Other"],
       duplicateWarning: "Same agent, pen and price logged in the last 2 minutes — check this isn't a duplicate.",

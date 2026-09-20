@@ -1,17 +1,27 @@
 "use client";
 
 import * as React from "react";
+import { ApiError } from "@/lib/api-client";
 import { useAuthStore } from "@/lib/auth-store";
 import { buyerApi, connectBuyerSocket, type DnbpCurrentResponse } from "@/lib/buyer-api";
+import { dnbpCurrentSchema } from "@/lib/buyer-schemas";
 import { cacheDnbp, getCachedDnbp, type CachedDnbp } from "@/lib/buyer/db";
 
 // §10 polling fallback — every 60s while foregrounded, in case both WS and
 // push fail (e.g. poor rural connectivity).
 const POLL_INTERVAL_MS = 60_000;
 
+// "not_published": the office hasn't published a DNBP yet (nothing to cache).
+// "unavailable": nothing cached on this device and the server couldn't be
+// reached (offline, or never synced here). Screens that require DNBP tell
+// the buyer which one applies, since the fix differs.
+export type DnbpStatus = "loading" | "ready" | "not_published" | "unavailable";
+
+type NetworkState = "pending" | "ok" | "not_published" | "failed";
+
 /**
  * Cache-first sync for `dnbp_cache`, shared by every buyer screen that
- * needs current DNBP data (home tiles, Market Intel's species picker, …):
+ * needs current DNBP data (DNBP home, Bid Check, Buy Log):
  * read the cache immediately, refresh from the network in the background,
  * and stay live via the `dnbp.published` WS event plus a 60s poll fallback.
  *
@@ -22,15 +32,17 @@ const POLL_INTERVAL_MS = 60_000;
  * event), so a background consumer must not fire it just for fetching data
  * it needs for an unrelated purpose.
  */
-export function useDnbpCurrent(options: { ack: boolean }): CachedDnbp | null {
+export function useDnbpCurrent(options: { ack: boolean }): { cached: CachedDnbp | null; status: DnbpStatus } {
   const { ack } = options;
   const [cached, setCached] = React.useState<CachedDnbp | null>(null);
+  const [network, setNetwork] = React.useState<NetworkState>("pending");
   const acknowledgedRef = React.useRef<string | null>(null);
 
   const applyFresh = React.useCallback(
     async (data: DnbpCurrentResponse) => {
       await cacheDnbp(data);
       setCached((await getCachedDnbp()) ?? null);
+      setNetwork("ok");
       if (ack && acknowledgedRef.current !== data.publication_id) {
         acknowledgedRef.current = data.publication_id;
         buyerApi.ackDnbp(data.publication_id, useAuthStore.getState().accessToken).catch(() => {
@@ -47,8 +59,10 @@ export function useDnbpCurrent(options: { ack: boolean }): CachedDnbp | null {
     try {
       const data = await buyerApi.getDnbpCurrent(useAuthStore.getState().accessToken);
       await applyFresh(data);
-    } catch {
-      // Offline or nothing published yet — the cached value (if any) stays displayed.
+    } catch (err) {
+      // Offline, nothing published yet, or an unusable response — the cached
+      // value (if any) stays displayed.
+      setNetwork(err instanceof ApiError && err.status === 404 ? "not_published" : "failed");
     }
   }, [applyFresh]);
 
@@ -63,7 +77,11 @@ export function useDnbpCurrent(options: { ack: boolean }): CachedDnbp | null {
       () => useAuthStore.getState().accessToken,
       (event, data) => {
         if (event === "dnbp.published") {
-          void applyFresh(data as DnbpCurrentResponse);
+          const parsed = dnbpCurrentSchema.safeParse(data);
+          // A frame that doesn't match the expected shape is never cached;
+          // re-fetching gets the authoritative copy instead.
+          if (parsed.success) void applyFresh(parsed.data);
+          else void loadFromCacheThenNetwork();
         } else if (event === "buying.progress_updated") {
           // This event only carries the touched species' delta (see
           // services/delivery_service.py::push_buying_progress), not the
@@ -83,5 +101,12 @@ export function useDnbpCurrent(options: { ack: boolean }): CachedDnbp | null {
     };
   }, [loadFromCacheThenNetwork, applyFresh]);
 
-  return cached;
+  const hasSpecies = cached !== null && cached.species.length > 0;
+  let status: DnbpStatus;
+  if (hasSpecies) status = "ready";
+  else if (network === "pending") status = "loading";
+  else if (network === "failed") status = "unavailable";
+  else status = "not_published";
+
+  return { cached, status };
 }

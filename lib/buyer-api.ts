@@ -1,5 +1,6 @@
 import { apiFetch } from "./api-client";
 import { TicketSocket } from "./ws-client";
+import { dnbpCurrentSchema, speciesOptionsSchema } from "./buyer-schemas";
 
 export type WeightBand = { min: string; max: string };
 
@@ -107,9 +108,12 @@ function auth(accessToken: string | null) {
 }
 
 export const buyerApi = {
-  getDnbpCurrent: (accessToken: string | null) => apiFetch<DnbpCurrentResponse>("/buyer/dnbp/current", auth(accessToken)),
+  // Parsed, not just cast: a malformed body throws here, before it can be cached.
+  getDnbpCurrent: async (accessToken: string | null): Promise<DnbpCurrentResponse> =>
+    dnbpCurrentSchema.parse(await apiFetch<unknown>("/buyer/dnbp/current", auth(accessToken))),
 
-  getSpecies: (accessToken: string | null) => apiFetch<SpeciesOption[]>("/buyer/species", auth(accessToken)),
+  getSpecies: async (accessToken: string | null): Promise<SpeciesOption[]> =>
+    speciesOptionsSchema.parse(await apiFetch<unknown>("/buyer/species", auth(accessToken))),
 
   ackDnbp: (publicationId: string, accessToken: string | null) =>
     apiFetch<void>("/buyer/dnbp/ack", { method: "POST", body: { publication_id: publicationId }, ...auth(accessToken) }),

@@ -39,7 +39,7 @@ export default function BuyerDnbpHomePage() {
 
 function DnbpHomeContent() {
   const online = useOnlineStatus();
-  const cached = useDnbpCurrent({ ack: true });
+  const { cached } = useDnbpCurrent({ ack: true });
 
   if (!cached) {
     return <EmptyState title={strings.buyer.dnbpHome.noPublication} />;

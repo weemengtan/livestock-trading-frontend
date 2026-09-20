@@ -20,7 +20,9 @@ import { useAuthStore } from "@/lib/auth-store";
 import { strings } from "@/lib/strings";
 import { scoreBid, CLOSE_THRESHOLD_PCT } from "@/lib/buyer/bidcheck";
 import { buyerApi } from "@/lib/buyer-api";
-import { buyerDb, cacheHistoryEntry, getCachedDnbp, type CachedDnbp } from "@/lib/buyer/db";
+import { buyerDb, cacheHistoryEntry, type CachedDnbp } from "@/lib/buyer/db";
+import { useDnbpCurrent } from "@/lib/buyer/use-dnbp-current";
+import { DnbpRequiredNotice } from "@/components/buyer/dnbp-required-notice";
 import { submitBuyEntry } from "@/lib/buyer/create-entry";
 import { flushPendingEntries } from "@/lib/buyer/sync";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -44,14 +46,25 @@ function BuyLogContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const accessToken = useAuthStore((s) => s.accessToken);
-  const [cached, setCached] = React.useState<CachedDnbp | null>(null);
+  // ack: false — the DNBP home screen owns the "buyer has seen it" signal.
+  const { cached, status } = useDnbpCurrent({ ack: false });
+  // A handoff from Bid Check (species/weight/price as URL query params) means
+  // the buyer already evaluated a specific lot and is here to log exactly
+  // that one; it seeds the form once, at first render.
+  const [draft] = React.useState(() => {
+    const s = searchParams.get("species");
+    const w = searchParams.get("weight");
+    const p = searchParams.get("price");
+    return s && w && p ? { species: s, weight: w, price: p } : null;
+  });
   const [saleyard, setSaleyard] = React.useState("Bendigo");
-  const [species, setSpecies] = React.useState("");
+  const [speciesChoice, setSpeciesChoice] = React.useState(draft?.species ?? "");
+  const species = speciesChoice || cached?.species[0]?.species || "";
   const [agent, setAgent] = React.useState("");
   const [pen, setPen] = React.useState("");
   const [heads, setHeads] = React.useState("1");
-  const [price, setPrice] = React.useState("");
-  const [weight, setWeight] = React.useState("");
+  const [price, setPrice] = React.useState(draft?.price ?? "");
+  const [weight, setWeight] = React.useState(draft?.weight ?? "");
   const [description, setDescription] = React.useState("");
   const [freight, setFreight] = React.useState("");
   const [cost, setCost] = React.useState("");
@@ -65,28 +78,10 @@ function BuyLogContent() {
   const pending = React.useMemo(() => pendingResult ?? [], [pendingResult]);
 
   React.useEffect(() => {
-    void (async () => {
-      const data = await getCachedDnbp();
-      setCached(data ?? null);
-      // A handoff from Bid Check (species/weight/price as URL query params)
-      // takes priority over the default first-species preselect — it means
-      // the buyer already evaluated a specific lot and is here to log
-      // exactly that one. Reading searchParams is non-destructive and
-      // idempotent, unlike a "consume once" store: running this twice
-      // reads the same values both times, so nothing here needs to guard
-      // against React's dev-mode double-invocation of mount effects.
-      const draftSpecies = searchParams.get("species");
-      const draftWeight = searchParams.get("weight");
-      const draftPrice = searchParams.get("price");
-      if (draftSpecies && draftWeight && draftPrice) {
-        setSpecies(draftSpecies);
-        setWeight(draftWeight);
-        setPrice(draftPrice);
-        router.replace("/buyer/buy-log");
-      } else if (data && data.species.length > 0) {
-        setSpecies(data.species[0].species);
-      }
-    })();
+    if (draft) router.replace("/buyer/buy-log");
+  }, [draft, router]);
+
+  React.useEffect(() => {
     void flushPendingEntries(accessToken);
     if (accessToken) {
       buyerApi
@@ -94,7 +89,6 @@ function BuyLogContent() {
         .then((entries) => Promise.all(entries.map((e) => cacheHistoryEntry(e))))
         .catch(() => {});
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- searchParams/router deliberately excluded: a Bid Check handoff must be applied at most once per mount, and the router.replace() above changes the URL (and therefore searchParams' identity) as a *result* of running this effect — including them here would re-trigger it and immediately overwrite the species/weight/price we just set.
   }, [accessToken, today]);
 
   const speciesLine = cached?.species.find((s) => s.species === species);
@@ -209,6 +203,8 @@ function BuyLogContent() {
 
   return (
     <div className="flex flex-col gap-4 p-4 pb-24">
+      {status === "ready" ? (
+        <>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
           <Label htmlFor="saleyard">Saleyard</Label>
@@ -219,7 +215,7 @@ function BuyLogContent() {
           <select
             id="log-species"
             value={species}
-            onChange={(e) => setSpecies(e.target.value)}
+            onChange={(e) => setSpeciesChoice(e.target.value)}
             className="h-12 rounded-md border border-default bg-surface px-3"
           >
             {(cached?.species ?? []).map((s) => (
@@ -260,6 +256,11 @@ function BuyLogContent() {
       <Button size="lg" onClick={handleSave} disabled={!result || saving}>
         {saving ? strings.buyer.buyLog.saving : strings.buyer.buyLog.save}
       </Button>
+      {!result ? <p className="-mt-2 text-center text-sm text-fg-tertiary">{strings.buyer.buyLog.saveHint}</p> : null}
+        </>
+      ) : (
+        <DnbpRequiredNotice status={status} />
+      )}
 
       <div className="flex items-center gap-1 border-t border-subtle pt-4 text-sm text-fg-tertiary">
         <span>Today&apos;s totals</span>

@@ -10,11 +10,11 @@ import { StatusBadge } from "@/components/buyer/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { EmptyState } from "@/components/ui/empty-state";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { strings } from "@/lib/strings";
 import { scoreBid, CLOSE_THRESHOLD_PCT } from "@/lib/buyer/bidcheck";
-import { getCachedDnbp, type CachedDnbp } from "@/lib/buyer/db";
+import { DnbpRequiredNotice } from "@/components/buyer/dnbp-required-notice";
+import { useDnbpCurrent } from "@/lib/buyer/use-dnbp-current";
 
 export default function BidCheckPage() {
   return (
@@ -29,19 +29,13 @@ export default function BidCheckPage() {
 
 function BidCheckContent() {
   const router = useRouter();
-  const [cached, setCached] = React.useState<CachedDnbp | null>(null);
-  const [species, setSpecies] = React.useState<string>("");
+  // ack: false — the DNBP home screen owns the "buyer has seen it" signal.
+  const { cached, status } = useDnbpCurrent({ ack: false });
+  const [speciesChoice, setSpeciesChoice] = React.useState("");
+  const species = speciesChoice || cached?.species[0]?.species || "";
   const [pricePerHead, setPricePerHead] = React.useState("");
   const [weightKg, setWeightKg] = React.useState("");
   const lastVibratedStatusRef = React.useRef<string | null>(null);
-
-  React.useEffect(() => {
-    void (async () => {
-      const data = await getCachedDnbp();
-      setCached(data ?? null);
-      if (data && data.species.length > 0) setSpecies(data.species[0].species);
-    })();
-  }, []);
 
   const speciesLine = cached?.species.find((s) => s.species === species);
   const hasWeight = weightKg.trim().length > 0;
@@ -77,8 +71,12 @@ function BidCheckContent() {
     }
   }, [result, hasPrice]);
 
-  if (!cached || cached.species.length === 0) {
-    return <EmptyState title={strings.buyer.dnbpHome.noPublication} />;
+  if (status !== "ready" || !cached) {
+    return (
+      <div className="p-4">
+        <DnbpRequiredNotice status={status} />
+      </div>
+    );
   }
 
   // Bid Check never writes a BuyEntry itself (§12.3 is evaluation-only) —
@@ -100,7 +98,7 @@ function BidCheckContent() {
         <select
           id="species"
           value={species}
-          onChange={(e) => setSpecies(e.target.value)}
+          onChange={(e) => setSpeciesChoice(e.target.value)}
           className="h-14 rounded-md border border-default bg-surface px-3 text-lg"
         >
           {cached.species.map((s) => (

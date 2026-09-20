@@ -1,6 +1,7 @@
 import Dexie, { type Table } from "dexie";
 import type { BuyEntryCreatePayload, BuyEntryResponse, DnbpCurrentResponse, SpeciesOption } from "@/lib/buyer-api";
 import type { MarketObservationCreatePayload } from "@/lib/market-intel-api";
+import { cachedDnbpSchema, cachedSpeciesSchema, dnbpCurrentSchema, speciesOptionsSchema } from "@/lib/buyer-schemas";
 
 /**
  * §12.7's offline architecture, the three IndexedDB tables named in the
@@ -75,11 +76,20 @@ class BuyerDatabase extends Dexie {
 export const buyerDb = new BuyerDatabase();
 
 export async function cacheDnbp(current: DnbpCurrentResponse): Promise<void> {
-  await buyerDb.dnbp_cache.put({ ...current, id: CURRENT_DNBP_KEY, fetched_at: new Date().toISOString() });
+  // Re-validated at the write itself so no caller can ever persist a bad shape.
+  await buyerDb.dnbp_cache.put({ ...dnbpCurrentSchema.parse(current), id: CURRENT_DNBP_KEY, fetched_at: new Date().toISOString() });
 }
 
+// A stored row that no longer matches the expected shape (written by an
+// older build, or from a malformed payload) is deleted rather than handed to
+// screens that assume it's well-formed — the next sync repopulates it.
 export async function getCachedDnbp(): Promise<CachedDnbp | undefined> {
-  return buyerDb.dnbp_cache.get(CURRENT_DNBP_KEY);
+  const row = await buyerDb.dnbp_cache.get(CURRENT_DNBP_KEY);
+  if (row === undefined) return undefined;
+  const parsed = cachedDnbpSchema.safeParse(row);
+  if (parsed.success) return parsed.data;
+  await buyerDb.dnbp_cache.delete(CURRENT_DNBP_KEY);
+  return undefined;
 }
 
 export async function queueEntry(payload: BuyEntryCreatePayload): Promise<void> {
@@ -122,10 +132,19 @@ const BOOTSTRAP_SPECIES: SpeciesOption[] = [
 ];
 
 export async function cacheSpecies(options: SpeciesOption[]): Promise<void> {
-  await buyerDb.species_cache.put({ id: SPECIES_CACHE_KEY, options, fetched_at: new Date().toISOString() });
+  await buyerDb.species_cache.put({
+    id: SPECIES_CACHE_KEY,
+    options: speciesOptionsSchema.parse(options),
+    fetched_at: new Date().toISOString(),
+  });
 }
 
 export async function getCachedSpecies(): Promise<CachedSpecies> {
   const row = await buyerDb.species_cache.get(SPECIES_CACHE_KEY);
-  return row ?? { id: SPECIES_CACHE_KEY, options: BOOTSTRAP_SPECIES, fetched_at: new Date(0).toISOString() };
+  if (row !== undefined) {
+    const parsed = cachedSpeciesSchema.safeParse(row);
+    if (parsed.success) return parsed.data;
+    await buyerDb.species_cache.delete(SPECIES_CACHE_KEY);
+  }
+  return { id: SPECIES_CACHE_KEY, options: BOOTSTRAP_SPECIES, fetched_at: new Date(0).toISOString() };
 }
