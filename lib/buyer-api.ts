@@ -20,6 +20,13 @@ export type DnbpCurrentResponse = {
   species: DnbpSpeciesLine[];
 };
 
+// Matches backend/schemas/buyer.py::SpeciesOption — the open species
+// registry, independent of any DNBP publication.
+export type SpeciesOption = {
+  code: string;
+  display_name: string;
+};
+
 // Matches backend/schemas/buyer.py::BuyEntryCreateRequest exactly.
 export type BuyEntryCreatePayload = {
   saleyard: string;
@@ -101,6 +108,8 @@ function auth(accessToken: string | null) {
 
 export const buyerApi = {
   getDnbpCurrent: (accessToken: string | null) => apiFetch<DnbpCurrentResponse>("/buyer/dnbp/current", auth(accessToken)),
+
+  getSpecies: (accessToken: string | null) => apiFetch<SpeciesOption[]>("/buyer/species", auth(accessToken)),
 
   ackDnbp: (publicationId: string, accessToken: string | null) =>
     apiFetch<void>("/buyer/dnbp/ack", { method: "POST", body: { publication_id: publicationId }, ...auth(accessToken) }),

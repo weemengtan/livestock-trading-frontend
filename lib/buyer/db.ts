@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { BuyEntryCreatePayload, BuyEntryResponse, DnbpCurrentResponse } from "@/lib/buyer-api";
+import type { BuyEntryCreatePayload, BuyEntryResponse, DnbpCurrentResponse, SpeciesOption } from "@/lib/buyer-api";
 import type { MarketObservationCreatePayload } from "@/lib/market-intel-api";
 
 /**
@@ -13,6 +13,15 @@ import type { MarketObservationCreatePayload } from "@/lib/market-intel-api";
 const CURRENT_DNBP_KEY = "current";
 
 export type CachedDnbp = DnbpCurrentResponse & { id: typeof CURRENT_DNBP_KEY; fetched_at: string };
+
+const SPECIES_CACHE_KEY = "current";
+
+// The species_registry table (backend/models/reference_data.py), cached in
+// its own table deliberately separate from dnbp_cache: Market Intel needs
+// this list for a picker that has no relationship to DNBP or any business
+// transaction, and must keep working on a device that has visited Market
+// Intel but never opened the DNBP tab.
+export type CachedSpecies = { id: typeof SPECIES_CACHE_KEY; options: SpeciesOption[]; fetched_at: string };
 
 export type SyncStatus = "queued" | "syncing" | "synced" | "conflict";
 
@@ -45,6 +54,7 @@ class BuyerDatabase extends Dexie {
   pending_entries!: Table<PendingEntry, string>;
   entry_history!: Table<HistoryEntry, string>;
   pending_observations!: Table<PendingObservation, string>;
+  species_cache!: Table<CachedSpecies, string>;
 
   constructor() {
     super("livestock-buyer");
@@ -55,6 +65,9 @@ class BuyerDatabase extends Dexie {
     });
     this.version(2).stores({
       pending_observations: "client_uuid, sync_status, created_at",
+    });
+    this.version(3).stores({
+      species_cache: "id",
     });
   }
 }
@@ -93,4 +106,26 @@ export async function queueObservation(payload: MarketObservationCreatePayload):
     sync_status: "queued",
     created_at: new Date().toISOString(),
   });
+}
+
+// Day-zero fallback for a device that has never reached /buyer/species —
+// mirrors fixtures/reference-data-seed.json's open_registries.species
+// seed_rows. Never written to species_cache itself: it's a render-time
+// fallback only, so a genuine empty registry response (if that ever
+// happens) still overrides it on the next successful fetch.
+const BOOTSTRAP_SPECIES: SpeciesOption[] = [
+  { code: "SHEEP", display_name: "Sheep" },
+  { code: "LAMB", display_name: "Lamb" },
+  { code: "GOAT", display_name: "Goat" },
+  { code: "VEAL", display_name: "Veal" },
+  { code: "MUTTON", display_name: "Mutton" },
+];
+
+export async function cacheSpecies(options: SpeciesOption[]): Promise<void> {
+  await buyerDb.species_cache.put({ id: SPECIES_CACHE_KEY, options, fetched_at: new Date().toISOString() });
+}
+
+export async function getCachedSpecies(): Promise<CachedSpecies> {
+  const row = await buyerDb.species_cache.get(SPECIES_CACHE_KEY);
+  return row ?? { id: SPECIES_CACHE_KEY, options: BOOTSTRAP_SPECIES, fetched_at: new Date(0).toISOString() };
 }

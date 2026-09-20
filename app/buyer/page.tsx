@@ -8,10 +8,9 @@ import { OfflineBanner, useOnlineStatus } from "@/components/buyer/offline-banne
 import { InstallPrompt } from "@/components/buyer/install-prompt";
 import { EmptyState } from "@/components/ui/empty-state";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
-import { useAuthStore } from "@/lib/auth-store";
 import { strings } from "@/lib/strings";
-import { buyerApi, connectBuyerSocket, type DnbpCurrentResponse, type DnbpSpeciesLine } from "@/lib/buyer-api";
-import { cacheDnbp, getCachedDnbp, type CachedDnbp } from "@/lib/buyer/db";
+import { type DnbpSpeciesLine } from "@/lib/buyer-api";
+import { useDnbpCurrent } from "@/lib/buyer/use-dnbp-current";
 
 // §3, §12.2 — a publication older than this is stale even if it's still
 // technically "current" (nothing newer has been published since).
@@ -40,63 +39,7 @@ export default function BuyerDnbpHomePage() {
 
 function DnbpHomeContent() {
   const online = useOnlineStatus();
-  const [cached, setCached] = React.useState<CachedDnbp | null>(null);
-  const acknowledgedRef = React.useRef<string | null>(null);
-
-  const applyFresh = React.useCallback(async (data: DnbpCurrentResponse) => {
-    await cacheDnbp(data);
-    setCached((await getCachedDnbp()) ?? null);
-    if (acknowledgedRef.current !== data.publication_id) {
-      acknowledgedRef.current = data.publication_id;
-      buyerApi.ackDnbp(data.publication_id, useAuthStore.getState().accessToken).catch(() => {
-        // Ack is best-effort from the client's perspective — the console's
-        // delivery tracker will simply show "not yet seen" a little longer.
-      });
-    }
-  }, []);
-
-  const loadFromCacheThenNetwork = React.useCallback(async () => {
-    setCached((await getCachedDnbp()) ?? null);
-    try {
-      const data = await buyerApi.getDnbpCurrent(useAuthStore.getState().accessToken);
-      await applyFresh(data);
-    } catch {
-      // Offline or nothing published yet — the cached value (if any) stays displayed.
-    }
-  }, [applyFresh]);
-
-  React.useEffect(() => {
-    void (async () => {
-      await loadFromCacheThenNetwork();
-    })();
-  }, [loadFromCacheThenNetwork]);
-
-  React.useEffect(() => {
-    const socket = connectBuyerSocket(
-      () => useAuthStore.getState().accessToken,
-      (event, data) => {
-        if (event === "dnbp.published") {
-          void applyFresh(data as DnbpCurrentResponse);
-        } else if (event === "buying.progress_updated") {
-          // This event only carries the touched species' delta (see
-          // services/delivery_service.py::push_buying_progress), not the
-          // full DnbpCurrentResponse shape applyFresh expects — re-fetch
-          // instead of trying to merge a partial payload in.
-          void loadFromCacheThenNetwork();
-        }
-      },
-      () => void loadFromCacheThenNetwork() // always re-fetch on (re)connect, per §10
-    );
-
-    // §10 polling fallback — every 60s while foregrounded, in case both WS
-    // and push fail (e.g. poor rural connectivity).
-    const pollId = setInterval(() => void loadFromCacheThenNetwork(), 60_000);
-
-    return () => {
-      socket.close();
-      clearInterval(pollId);
-    };
-  }, [loadFromCacheThenNetwork, applyFresh]);
+  const cached = useDnbpCurrent({ ack: true });
 
   if (!cached) {
     return <EmptyState title={strings.buyer.dnbpHome.noPublication} />;

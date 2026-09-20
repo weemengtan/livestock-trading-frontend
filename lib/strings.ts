@@ -352,6 +352,8 @@ export const strings = {
       weightLabel: "Weight (optional)",
       descLabel: "Desc.",
       speciesLabel: "Species",
+      noSpecies: "No species available",
+      noSpeciesHint: "Couldn't load the species list — try again once you're back online.",
       estimatedLabel: "Price/weight estimated (not read off the docket)",
       save: "Save observation",
       saving: "Saving…",

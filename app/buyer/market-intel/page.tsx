@@ -13,7 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "@/components/ui/toast";
 import { useAuthStore } from "@/lib/auth-store";
 import { strings } from "@/lib/strings";
-import { getCachedDnbp, type CachedDnbp } from "@/lib/buyer/db";
+import { useSpecies } from "@/lib/buyer/use-species";
 import { submitObservation } from "@/lib/buyer/create-observation";
 import { flushPendingObservations } from "@/lib/buyer/sync-observations";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -32,9 +32,18 @@ export default function MarketIntelPage() {
 
 function MarketIntelContent() {
   const accessToken = useAuthStore((s) => s.accessToken);
-  const [cached, setCached] = React.useState<CachedDnbp | null>(null);
+  // Market Intel has no relationship to DNBP or any business transaction —
+  // its species list comes from the open registry, not a DNBP publication
+  // (see lib/buyer/use-species.ts).
+  const speciesOptions = useSpecies(accessToken);
+  const noSpecies = speciesOptions.length === 0;
   const [saleyard, setSaleyard] = React.useState("Bendigo");
-  const [species, setSpecies] = React.useState("");
+  const [speciesChoice, setSpeciesChoice] = React.useState("");
+  // Falls back to the first registry species until the buyer explicitly
+  // picks one — derived at render time, not via an effect, so a background
+  // cache refresh can update the default without fighting an in-progress
+  // selection.
+  const species = speciesChoice || speciesOptions[0]?.code || "";
   const [competitor, setCompetitor] = React.useState("");
   const [agent, setAgent] = React.useState("");
   const [pen, setPen] = React.useState("");
@@ -50,11 +59,6 @@ function MarketIntelContent() {
   const pending = React.useMemo(() => (pendingResult ?? []).slice().reverse(), [pendingResult]);
 
   React.useEffect(() => {
-    void (async () => {
-      const data = await getCachedDnbp();
-      setCached(data ?? null);
-      if (data && data.species.length > 0) setSpecies(data.species[0].species);
-    })();
     void flushPendingObservations(accessToken);
   }, [accessToken]);
 
@@ -107,15 +111,21 @@ function MarketIntelContent() {
           <select
             id="mi-species"
             value={species}
-            onChange={(e) => setSpecies(e.target.value)}
-            className="h-12 rounded-md border border-default bg-surface px-3"
+            onChange={(e) => setSpeciesChoice(e.target.value)}
+            disabled={noSpecies}
+            className="h-12 rounded-md border border-default bg-surface px-3 disabled:opacity-50"
           >
-            {(cached?.species ?? []).map((s) => (
-              <option key={s.species} value={s.species}>
-                {s.species}
-              </option>
-            ))}
+            {noSpecies ? (
+              <option value="">{strings.buyer.marketIntel.noSpecies}</option>
+            ) : (
+              speciesOptions.map((s) => (
+                <option key={s.code} value={s.code}>
+                  {s.display_name}
+                </option>
+              ))
+            )}
           </select>
+          {noSpecies ? <p className="text-xs text-status-close-fg">{strings.buyer.marketIntel.noSpeciesHint}</p> : null}
         </div>
       </div>
 
