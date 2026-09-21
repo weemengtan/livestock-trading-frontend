@@ -50,7 +50,7 @@ function WorkbenchContent({ snapshotId }: { snapshotId: string }) {
       await withErrorToast(async () => {
         const [snap, activeLineRows, issueRows, correctionRows] = await Promise.all([
           workbenchApi.getSnapshot(snapshotId, accessToken),
-          workbenchApi.listLines(snapshotId, accessToken, "ACTIVE"),
+          workbenchApi.listLines(snapshotId, accessToken),
           workbenchApi.listIssues(snapshotId, accessToken),
           workbenchApi.listCorrectionRequests(snapshotId, accessToken),
         ]);

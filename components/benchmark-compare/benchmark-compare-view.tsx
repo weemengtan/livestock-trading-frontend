@@ -44,7 +44,7 @@ export function BenchmarkCompareView() {
         if (!latest) return;
 
         const [lines, active, workingsRows] = await Promise.all([
-          workbenchApi.listLines(latest.id, accessToken, "ACTIVE"),
+          workbenchApi.listLines(latest.id, accessToken),
           referenceDataApi.getActive(accessToken),
           workbenchApi.listWorkings(latest.id, accessToken),
         ]);
