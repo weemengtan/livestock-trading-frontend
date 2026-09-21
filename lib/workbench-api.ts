@@ -1,6 +1,5 @@
 import { apiFetch } from "./api-client";
 
-export type Lifecycle = "ACTIVE" | "LOADED";
 export type ValueSource = "FORMULA" | "HAND_SET";
 export type BenchmarkMethod = "GAYAN_FIXED_COST" | "FINANCIER_MARGIN" | "UNKNOWN";
 export type IssueSeverity = "BLOCK" | "CORRECTION" | "WARN" | "INFO";
@@ -19,14 +18,18 @@ export type Snapshot = {
   created_at: string;
 };
 
+export type IngestionContract = {
+  version: string;
+  required_sheet_name: string;
+};
+
 export type UploadPreview = {
   preview_id: string;
   detected_layout: Record<string, unknown>;
   active_count: number;
-  loaded_count: number;
   diff: {
-    summary: { new_count: number; changed_count: number; moved_to_loaded_count: number; removed_count: number };
-    new_lines: { contract_no: string | null; species: string | null; lifecycle: Lifecycle }[];
+    summary: { new_count: number; changed_count: number; removed_count: number };
+    new_lines: { contract_no: string | null; species: string | null }[];
     changed_lines: { identity_key: (string | null)[]; changes: { field: string; previous: unknown; current: unknown }[] }[];
   };
   duplicate_of_current: { snapshot_id: string; uploaded_by_email: string; uploaded_at: string } | null;
@@ -45,7 +48,6 @@ export type OrderLine = {
   id: string;
   snapshot_id: string;
   line_no: number;
-  lifecycle: Lifecycle;
   contract_no: string | null;
   customer_name: string | null;
   species: string | null;
@@ -134,6 +136,8 @@ function auth(accessToken: string | null) {
 }
 
 export const workbenchApi = {
+  getIngestionContract: (accessToken: string | null) =>
+    apiFetch<IngestionContract>("/snapshots/ingestion-contract", auth(accessToken)),
   uploadPreview: (file: File, accessToken: string | null) => {
     const form = new FormData();
     form.append("file", file);
@@ -145,8 +149,8 @@ export const workbenchApi = {
   getSnapshot: (id: string, accessToken: string | null) => apiFetch<Snapshot>(`/snapshots/${id}`, auth(accessToken)),
   calculateSnapshot: (id: string, accessToken: string | null) =>
     apiFetch<CalculateSummary>(`/snapshots/${id}/calculate`, { method: "POST", ...auth(accessToken) }),
-  listLines: (snapshotId: string, accessToken: string | null, lifecycle?: Lifecycle) =>
-    apiFetch<OrderLine[]>(`/snapshots/${snapshotId}/lines${lifecycle ? `?lifecycle=${lifecycle}` : ""}`, auth(accessToken)),
+  listLines: (snapshotId: string, accessToken: string | null) =>
+    apiFetch<OrderLine[]>(`/snapshots/${snapshotId}/lines`, auth(accessToken)),
   listIssues: (snapshotId: string, accessToken: string | null) =>
     apiFetch<ValidationIssue[]>(`/snapshots/${snapshotId}/issues`, auth(accessToken)),
   getWorkings: (orderLineId: string, accessToken: string | null) =>

@@ -111,7 +111,7 @@ export function HomeToday() {
 
       if (latest) {
         const [activeLines, issueRows] = await Promise.all([
-          workbenchApi.listLines(latest.id, accessToken, "ACTIVE"),
+          workbenchApi.listLines(latest.id, accessToken),
           workbenchApi.listIssues(latest.id, accessToken),
         ]);
         setActiveCount(activeLines.length);
