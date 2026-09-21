@@ -4,11 +4,23 @@ function auth(accessToken: string | null) {
   return { accessToken };
 }
 
+export type SaleyardCalendarRow = {
+  saleyard: string;
+  day: string;
+  prepayment_aud: string;
+  note: string | null;
+};
+
 export type ActiveConfig = {
   ref_data_version: string;
+  ref_data_version_id: string | null;
   cif_buffer_per_kg: string;
   dnbp_factor_by_species: Record<string, string>;
   standard_weight_by_species: Record<string, string>;
+  bid_check_close_threshold_pct: string;
+  buyer_weight_band_tolerance_pct: string;
+  stale_instruction_hours: number;
+  saleyard_calendar: SaleyardCalendarRow[];
   owner: string;
 };
 
@@ -19,6 +31,7 @@ export type ReferenceDataVersion = {
   note: string | null;
   is_active: boolean;
   activated_at: string | null;
+  activated_by: string | null;
   impact_previewed_at: string | null;
   created_at: string;
 };
@@ -57,7 +70,20 @@ export type ProductTypeRow = {
   is_active: boolean;
 };
 
-export type NewEntry = { table_key: "cif_buffer_per_kg" | "dnbp_factor_by_species" | "standard_weight_by_species"; key1: string | null; value: string };
+export type NewEntry = {
+  table_key:
+    | "cif_buffer_per_kg"
+    | "dnbp_factor_by_species"
+    | "standard_weight_by_species"
+    | "bid_check_close_threshold_pct"
+    | "buyer_weight_band_tolerance_pct"
+    | "stale_instruction_hours"
+    | "saleyard_calendar";
+  key1: string | null;
+  key2?: string | null;
+  value: string;
+  text_value?: string | null;
+};
 
 export const referenceDataApi = {
   getActive: (accessToken: string | null) => apiFetch<ActiveConfig>("/reference-data/active", auth(accessToken)),

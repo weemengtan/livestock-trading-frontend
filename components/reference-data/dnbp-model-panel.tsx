@@ -48,13 +48,33 @@ function EditForm({
   const [weights, setWeights] = React.useState<Record<string, string>>(
     Object.fromEntries(species.map((s) => [s.code, active.standard_weight_by_species[s.code] ?? ""]))
   );
+  const [bidThreshold, setBidThreshold] = React.useState(active.bid_check_close_threshold_pct);
+  const [tolerance, setTolerance] = React.useState(active.buyer_weight_band_tolerance_pct);
+  const [staleHours, setStaleHours] = React.useState(String(active.stale_instruction_hours));
+  const [calendar, setCalendar] = React.useState(
+    active.saleyard_calendar.map((row) => ({ ...row, note: row.note ?? "" }))
+  );
   const [submitting, setSubmitting] = React.useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const entries: NewEntry[] = [{ table_key: "cif_buffer_per_kg", key1: null, value: cifBuffer }];
+      const entries: NewEntry[] = [
+        { table_key: "cif_buffer_per_kg", key1: null, value: cifBuffer },
+        { table_key: "bid_check_close_threshold_pct", key1: null, value: bidThreshold },
+        { table_key: "buyer_weight_band_tolerance_pct", key1: null, value: tolerance },
+        { table_key: "stale_instruction_hours", key1: null, value: staleHours },
+        ...calendar.map(
+          (row): NewEntry => ({
+            table_key: "saleyard_calendar",
+            key1: row.saleyard,
+            key2: row.day,
+            value: row.prepayment_aud,
+            text_value: row.note || null,
+          })
+        ),
+      ];
       for (const s of species) {
         if (factors[s.code]) entries.push({ table_key: "dnbp_factor_by_species", key1: s.code, value: factors[s.code] });
         if (weights[s.code]) entries.push({ table_key: "standard_weight_by_species", key1: s.code, value: weights[s.code] });
@@ -109,6 +129,53 @@ function EditForm({
                     value={weights[s.code] ?? ""}
                     onChange={(e) => setWeights((prev) => ({ ...prev, [s.code]: e.target.value }))}
                     placeholder="weight (kg)"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-medium text-fg-secondary">{strings.referenceData.model.operationalTitle}</p>
+            <div className="mt-2 flex flex-col gap-2">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="bid-threshold">{strings.referenceData.model.bidCheckThreshold}</Label>
+                <Input id="bid-threshold" value={bidThreshold} onChange={(e) => setBidThreshold(e.target.value)} required />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="weight-tolerance">{strings.referenceData.model.weightTolerance}</Label>
+                <Input id="weight-tolerance" value={tolerance} onChange={(e) => setTolerance(e.target.value)} required />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="stale-hours">{strings.referenceData.model.staleHours}</Label>
+                <Input id="stale-hours" value={staleHours} onChange={(e) => setStaleHours(e.target.value)} required />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-medium text-fg-secondary">{strings.referenceData.model.calendarTitle}</p>
+            <div className="mt-2 flex flex-col gap-2">
+              {calendar.map((row, index) => (
+                <div key={`${row.saleyard}-${row.day}`} className="grid grid-cols-3 items-center gap-2">
+                  <span className="text-sm">
+                    {row.saleyard} · {row.day.charAt(0)}
+                    {row.day.slice(1).toLowerCase()}
+                  </span>
+                  <Input
+                    aria-label={`${row.saleyard} ${strings.referenceData.model.prepayment}`}
+                    value={row.prepayment_aud}
+                    onChange={(e) =>
+                      setCalendar((prev) => prev.map((r, i) => (i === index ? { ...r, prepayment_aud: e.target.value } : r)))
+                    }
+                  />
+                  <Input
+                    aria-label={`${row.saleyard} ${strings.referenceData.model.calendarNote}`}
+                    value={row.note ?? ""}
+                    onChange={(e) =>
+                      setCalendar((prev) => prev.map((r, i) => (i === index ? { ...r, note: e.target.value } : r)))
+                    }
+                    placeholder="note"
                   />
                 </div>
               ))}
@@ -310,6 +377,48 @@ export function DnbpModelPanel() {
               <Badge key={code} variant="accent">
                 {code}: {Number(value).toFixed(2)}
               </Badge>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">
+              {strings.referenceData.model.bidCheckThreshold}
+            </p>
+            <p className="text-lg font-semibold tabular-nums">{Number(active.bid_check_close_threshold_pct)}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">
+              {strings.referenceData.model.weightTolerance}
+            </p>
+            <p className="text-lg font-semibold tabular-nums">{Number(active.buyer_weight_band_tolerance_pct)}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">
+              {strings.referenceData.model.staleHours}
+            </p>
+            <p className="text-lg font-semibold tabular-nums">{active.stale_instruction_hours}</p>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">
+            {strings.referenceData.model.calendarTitle}
+          </p>
+          <div className="mt-2 flex flex-col gap-1 text-sm">
+            {active.saleyard_calendar.map((row) => (
+              <div key={`${row.saleyard}-${row.day}`} className="flex flex-wrap items-baseline gap-x-3">
+                <span className="font-medium">{row.saleyard}</span>
+                <span className="text-fg-secondary">
+                  {row.day.charAt(0)}
+                  {row.day.slice(1).toLowerCase()}
+                </span>
+                <span className="tabular-nums">
+                  {Number(row.prepayment_aud).toLocaleString("en-AU", { style: "currency", currency: "AUD" })}
+                </span>
+                {row.note ? <span className="text-fg-tertiary">{row.note}</span> : null}
+              </div>
             ))}
           </div>
         </div>
