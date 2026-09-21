@@ -57,6 +57,7 @@ export type ImpactPreview = {
   lines: ImpactLine[];
   aggregate_exposure_delta_aud: string;
   lines_affected: number;
+  lines_unpriced: number;
 };
 
 export type SpeciesRow = {
@@ -71,6 +72,12 @@ export type ProductTypeRow = {
   code: string;
   display_name: string;
   is_active: boolean;
+};
+
+export type KeyRef = {
+  table_key: NewEntry["table_key"];
+  key1?: string | null;
+  key2?: string | null;
 };
 
 export type NewEntry = {
@@ -94,7 +101,10 @@ export const referenceDataApi = {
     apiFetch<ReferenceDataVersion[]>("/reference-data/versions", auth(accessToken)),
   getVersion: (id: string, accessToken: string | null) =>
     apiFetch<ReferenceDataVersionDetail>(`/reference-data/versions/${id}`, auth(accessToken)),
-  createVersion: (body: { effective_from: string; note?: string; entries: NewEntry[] }, accessToken: string | null) =>
+  createVersion: (
+    body: { effective_from: string; note?: string; entries: NewEntry[]; removals?: KeyRef[] },
+    accessToken: string | null
+  ) =>
     apiFetch<ReferenceDataVersion>("/reference-data/versions", { method: "POST", body, ...auth(accessToken) }),
   previewImpact: (id: string, accessToken: string | null) =>
     apiFetch<ImpactPreview>(`/reference-data/versions/${id}/impact`, { method: "POST", ...auth(accessToken) }),

@@ -22,12 +22,18 @@ import {
   referenceDataApi,
   type ActiveConfig,
   type ImpactPreview,
+  type KeyRef,
   type NewEntry,
+  type SaleyardCalendarRow,
   type ReferenceDataVersion,
   type SpeciesRow,
 } from "@/lib/reference-data-api";
 import { strings } from "@/lib/strings";
 import { withErrorToast } from "@/lib/with-error-toast";
+
+const WEEKDAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
+
+type CalendarDraftRow = SaleyardCalendarRow & { removed: boolean; isNew: boolean };
 
 function EditForm({
   active,
@@ -51,9 +57,10 @@ function EditForm({
   const [bidThreshold, setBidThreshold] = React.useState(active.bid_check_close_threshold_pct);
   const [tolerance, setTolerance] = React.useState(active.buyer_weight_band_tolerance_pct);
   const [staleHours, setStaleHours] = React.useState(String(active.stale_instruction_hours));
-  const [calendar, setCalendar] = React.useState(
-    active.saleyard_calendar.map((row) => ({ ...row, note: row.note ?? "" }))
+  const [calendar, setCalendar] = React.useState<CalendarDraftRow[]>(
+    active.saleyard_calendar.map((row) => ({ ...row, note: row.note ?? "", removed: false, isNew: false }))
   );
+  const [newYard, setNewYard] = React.useState({ saleyard: "", day: "MONDAY", prepayment_aud: "0" });
   const [submitting, setSubmitting] = React.useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -65,22 +72,31 @@ function EditForm({
         { table_key: "bid_check_close_threshold_pct", key1: null, value: bidThreshold },
         { table_key: "buyer_weight_band_tolerance_pct", key1: null, value: tolerance },
         { table_key: "stale_instruction_hours", key1: null, value: staleHours },
-        ...calendar.map(
-          (row): NewEntry => ({
-            table_key: "saleyard_calendar",
-            key1: row.saleyard,
-            key2: row.day,
-            value: row.prepayment_aud,
-            text_value: row.note || null,
-          })
-        ),
+        ...calendar
+          .filter((row) => !row.removed)
+          .map(
+            (row): NewEntry => ({
+              table_key: "saleyard_calendar",
+              key1: row.saleyard,
+              key2: row.day,
+              value: row.prepayment_aud,
+              text_value: row.note || null,
+            })
+          ),
       ];
+      const removals: KeyRef[] = calendar
+        .filter((row) => row.removed && !row.isNew)
+        .map((row) => ({ table_key: "saleyard_calendar", key1: row.saleyard, key2: row.day }));
       for (const s of species) {
+        // A value entered sets it; clearing a value the active version has removes it.
         if (factors[s.code]) entries.push({ table_key: "dnbp_factor_by_species", key1: s.code, value: factors[s.code] });
+        else if (s.code in active.dnbp_factor_by_species) removals.push({ table_key: "dnbp_factor_by_species", key1: s.code });
         if (weights[s.code]) entries.push({ table_key: "standard_weight_by_species", key1: s.code, value: weights[s.code] });
+        else if (s.code in active.standard_weight_by_species)
+          removals.push({ table_key: "standard_weight_by_species", key1: s.code });
       }
       const version = await referenceDataApi.createVersion(
-        { effective_from: new Date().toISOString(), note: note || undefined, entries },
+        { effective_from: new Date().toISOString(), note: note || undefined, entries, removals },
         accessToken
       );
       setOpen(false);
@@ -114,6 +130,7 @@ function EditForm({
 
           <div>
             <p className="text-sm font-medium text-fg-secondary">{strings.referenceData.model.dnbpFactor}</p>
+            <p className="mt-1 text-xs text-fg-tertiary">{strings.referenceData.model.clearToRemove}</p>
             <div className="mt-2 flex flex-col gap-2">
               {species.map((s) => (
                 <div key={s.code} className="grid grid-cols-3 items-center gap-2">
@@ -157,10 +174,11 @@ function EditForm({
             <p className="text-sm font-medium text-fg-secondary">{strings.referenceData.model.calendarTitle}</p>
             <div className="mt-2 flex flex-col gap-2">
               {calendar.map((row, index) => (
-                <div key={`${row.saleyard}-${row.day}`} className="grid grid-cols-3 items-center gap-2">
-                  <span className="text-sm">
+                <div key={`${row.saleyard}-${row.day}`} className="grid grid-cols-4 items-center gap-2">
+                  <span className={`text-sm ${row.removed ? "text-fg-tertiary line-through" : ""}`}>
                     {row.saleyard} · {row.day.charAt(0)}
                     {row.day.slice(1).toLowerCase()}
+                    {row.removed ? ` — ${strings.referenceData.model.removedLabel}` : ""}
                   </span>
                   <Input
                     aria-label={`${row.saleyard} ${strings.referenceData.model.prepayment}`}
@@ -177,8 +195,61 @@ function EditForm({
                     }
                     placeholder="note"
                   />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() =>
+                      setCalendar((prev) =>
+                        row.isNew ? prev.filter((_, i) => i !== index) : prev.map((r, i) => (i === index ? { ...r, removed: !r.removed } : r))
+                      )
+                    }
+                  >
+                    {row.removed ? strings.referenceData.model.undoRemove : strings.referenceData.model.removeRow}
+                  </Button>
                 </div>
               ))}
+              <div className="grid grid-cols-4 items-center gap-2">
+                <Input
+                  aria-label={strings.referenceData.model.newSaleyardName}
+                  value={newYard.saleyard}
+                  onChange={(e) => setNewYard((prev) => ({ ...prev, saleyard: e.target.value }))}
+                  placeholder={strings.referenceData.model.newSaleyardName}
+                />
+                <select
+                  aria-label={strings.referenceData.model.newSaleyardDay}
+                  value={newYard.day}
+                  onChange={(e) => setNewYard((prev) => ({ ...prev, day: e.target.value }))}
+                  className="h-9 rounded-md border border-default bg-surface px-2 text-sm"
+                >
+                  {WEEKDAYS.map((d) => (
+                    <option key={d} value={d}>
+                      {d.charAt(0)}
+                      {d.slice(1).toLowerCase()}
+                    </option>
+                  ))}
+                </select>
+                <Input
+                  aria-label={strings.referenceData.model.prepayment}
+                  value={newYard.prepayment_aud}
+                  onChange={(e) => setNewYard((prev) => ({ ...prev, prepayment_aud: e.target.value }))}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={!newYard.saleyard.trim()}
+                  onClick={() => {
+                    setCalendar((prev) => [
+                      ...prev,
+                      { ...newYard, saleyard: newYard.saleyard.trim(), note: "", removed: false, isNew: true },
+                    ]);
+                    setNewYard({ saleyard: "", day: "MONDAY", prepayment_aud: "0" });
+                  }}
+                >
+                  {strings.referenceData.model.addSaleyard}
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -243,6 +314,12 @@ function ImpactAndActivate({ version, onActivated }: { version: ReferenceDataVer
     <Card className="border-status-close-fg">
       <p className="text-sm font-semibold text-fg-primary">{strings.referenceData.impact.title}</p>
       <p className="mt-1 text-sm text-status-close-fg">{strings.referenceData.impact.warning}</p>
+
+      {impact.lines_unpriced > 0 ? (
+        <p role="alert" className="mt-2 text-sm font-semibold text-status-breach-fg">
+          {impact.lines_unpriced} {strings.referenceData.impact.unpricedWarning}
+        </p>
+      ) : null}
 
       <div className="mt-3 flex gap-6 text-sm">
         <span>
