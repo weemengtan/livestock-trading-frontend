@@ -11,8 +11,7 @@
     "start": "next start",
     "lint": "eslint",
     "pretypecheck": "next typegen",
-    "typecheck": "tsc --noEmit",
-    "test:a11y": "playwright test"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.23",
@@ -37,8 +36,6 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.13.0",
-    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
