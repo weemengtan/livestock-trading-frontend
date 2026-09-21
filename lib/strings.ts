@@ -154,13 +154,6 @@ export const strings = {
         },
       },
     },
-    abattoir: {
-      title: "Abattoir tables",
-      subtitle: "Maintained by the abattoir and received with each submission — not editable here.",
-      drift: "Drift awaiting review",
-      noDrift: "No drift detected.",
-      acknowledge: "Acknowledge",
-    },
     registries: {
       speciesTitle: "Species registry",
       productTypeTitle: "Product type registry",

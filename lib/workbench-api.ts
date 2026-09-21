@@ -19,13 +19,17 @@ export type Snapshot = {
   created_at: string;
 };
 
+export type IngestionContract = {
+  version: string;
+  required_sheet_name: string;
+};
+
 export type UploadPreview = {
   preview_id: string;
   detected_layout: Record<string, unknown>;
   active_count: number;
-  loaded_count: number;
   diff: {
-    summary: { new_count: number; changed_count: number; moved_to_loaded_count: number; removed_count: number };
+    summary: { new_count: number; changed_count: number; removed_count: number };
     new_lines: { contract_no: string | null; species: string | null; lifecycle: Lifecycle }[];
     changed_lines: { identity_key: (string | null)[]; changes: { field: string; previous: unknown; current: unknown }[] }[];
   };
@@ -134,6 +138,8 @@ function auth(accessToken: string | null) {
 }
 
 export const workbenchApi = {
+  getIngestionContract: (accessToken: string | null) =>
+    apiFetch<IngestionContract>("/snapshots/ingestion-contract", auth(accessToken)),
   uploadPreview: (file: File, accessToken: string | null) => {
     const form = new FormData();
     form.append("file", file);

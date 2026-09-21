@@ -57,26 +57,6 @@ export type ProductTypeRow = {
   is_active: boolean;
 };
 
-export type AbattoirTables = {
-  snapshot_id: string;
-  source_filename: string;
-  pack_cost_by_product_type: Record<string, string>;
-  offal_return_ph_by_species: Record<string, string>;
-  skin_return_ph_by_species: Record<string, string>;
-};
-
-export type DriftRow = {
-  id: string;
-  snapshot_id: string;
-  table_key: string;
-  key1: string;
-  old_value: string | null;
-  new_value: string | null;
-  detected_at: string;
-  acknowledged_by: string | null;
-  acknowledged_at: string | null;
-};
-
 export type NewEntry = { table_key: "cif_buffer_per_kg" | "dnbp_factor_by_species" | "standard_weight_by_species"; key1: string | null; value: string };
 
 export const referenceDataApi = {
@@ -91,12 +71,6 @@ export const referenceDataApi = {
     apiFetch<ImpactPreview>(`/reference-data/versions/${id}/impact`, { method: "POST", ...auth(accessToken) }),
   activateVersion: (id: string, accessToken: string | null) =>
     apiFetch<ReferenceDataVersion>(`/reference-data/versions/${id}/activate`, { method: "POST", ...auth(accessToken) }),
-  getAbattoirTables: (accessToken: string | null) =>
-    apiFetch<AbattoirTables>("/reference-data/abattoir", auth(accessToken)),
-  listDrift: (accessToken: string | null, unacknowledgedOnly = false) =>
-    apiFetch<DriftRow[]>(`/reference-data/drift${unacknowledgedOnly ? "?unacknowledged=true" : ""}`, auth(accessToken)),
-  acknowledgeDrift: (id: string, accessToken: string | null) =>
-    apiFetch<DriftRow>(`/reference-data/drift/${id}/acknowledge`, { method: "POST", ...auth(accessToken) }),
   listSpecies: (accessToken: string | null) => apiFetch<SpeciesRow[]>("/reference-data/species", auth(accessToken)),
   createSpecies: (body: { code: string; display_name: string }, accessToken: string | null) =>
     apiFetch<SpeciesRow>("/reference-data/species", { method: "POST", body, ...auth(accessToken) }),

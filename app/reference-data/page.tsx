@@ -4,12 +4,11 @@ import * as React from "react";
 import { AppShell } from "@/components/app-shell";
 import { AuthGuard } from "@/components/auth-guard";
 import { Button } from "@/components/ui/button";
-import { AbattoirPanel } from "@/components/reference-data/abattoir-panel";
 import { DnbpModelPanel } from "@/components/reference-data/dnbp-model-panel";
 import { RegistriesPanel } from "@/components/reference-data/registries-panel";
 import { strings } from "@/lib/strings";
 
-type Tab = "model" | "abattoir" | "registries";
+type Tab = "model" | "registries";
 
 export default function ReferenceDataPage() {
   const [tab, setTab] = React.useState<Tab>("model");
@@ -21,16 +20,12 @@ export default function ReferenceDataPage() {
           <Button variant={tab === "model" ? "primary" : "secondary"} size="sm" onClick={() => setTab("model")}>
             {strings.referenceData.model.title}
           </Button>
-          <Button variant={tab === "abattoir" ? "primary" : "secondary"} size="sm" onClick={() => setTab("abattoir")}>
-            {strings.referenceData.abattoir.title}
-          </Button>
           <Button variant={tab === "registries" ? "primary" : "secondary"} size="sm" onClick={() => setTab("registries")}>
             Species &amp; Product Types
           </Button>
         </div>
 
         {tab === "model" ? <DnbpModelPanel /> : null}
-        {tab === "abattoir" ? <AbattoirPanel /> : null}
         {tab === "registries" ? <RegistriesPanel /> : null}
       </AppShell>
     </AuthGuard>

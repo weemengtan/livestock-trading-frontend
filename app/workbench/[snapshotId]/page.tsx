@@ -35,13 +35,11 @@ export default function WorkbenchSnapshotPage({ params }: { params: Promise<{ sn
 function WorkbenchContent({ snapshotId }: { snapshotId: string }) {
   const accessToken = useAuthStore((s) => s.accessToken);
   const [snapshot, setSnapshot] = React.useState<Snapshot | null>(null);
-  const [lines, setLines] = React.useState<OrderLine[]>([]);
   const [activeLines, setActiveLines] = React.useState<OrderLine[]>([]);
   const [workingsByLineId, setWorkingsByLineId] = React.useState<Map<string, OrderWorkings>>(new Map());
   const [issuesByLineId, setIssuesByLineId] = React.useState<Map<string, ValidationIssue[]>>(new Map());
   const [openCorrectionColumnsByLineId, setOpenCorrectionColumnsByLineId] = React.useState<Map<string, Set<string>>>(new Map());
   const [activeLineIds, setActiveLineIds] = React.useState<Set<string>>(new Set());
-  const [lifecycleFilter, setLifecycleFilter] = React.useState<"ACTIVE" | "LOADED">("ACTIVE");
   // Starts true for the first paint; `load` only ever flips it false in its
   // `finally`, never true again synchronously inside the effect below.
   const [loading, setLoading] = React.useState(true);
@@ -50,15 +48,13 @@ function WorkbenchContent({ snapshotId }: { snapshotId: string }) {
   const load = React.useCallback(async () => {
     try {
       await withErrorToast(async () => {
-        const [snap, lineRows, activeLineRows, issueRows, correctionRows] = await Promise.all([
+        const [snap, activeLineRows, issueRows, correctionRows] = await Promise.all([
           workbenchApi.getSnapshot(snapshotId, accessToken),
-          workbenchApi.listLines(snapshotId, accessToken, lifecycleFilter),
           workbenchApi.listLines(snapshotId, accessToken, "ACTIVE"),
           workbenchApi.listIssues(snapshotId, accessToken),
           workbenchApi.listCorrectionRequests(snapshotId, accessToken),
         ]);
         setSnapshot(snap);
-        setLines(lineRows);
         setActiveLines(activeLineRows);
         setActiveLineIds(new Set(activeLineRows.map((l) => l.id)));
 
@@ -83,7 +79,7 @@ function WorkbenchContent({ snapshotId }: { snapshotId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [snapshotId, accessToken, lifecycleFilter]);
+  }, [snapshotId, accessToken]);
 
   React.useEffect(() => {
     void load();
@@ -120,20 +116,6 @@ function WorkbenchContent({ snapshotId }: { snapshotId: string }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant={lifecycleFilter === "ACTIVE" ? "primary" : "secondary"}
-            size="sm"
-            onClick={() => setLifecycleFilter("ACTIVE")}
-          >
-            Active
-          </Button>
-          <Button
-            variant={lifecycleFilter === "LOADED" ? "primary" : "secondary"}
-            size="sm"
-            onClick={() => setLifecycleFilter("LOADED")}
-          >
-            Loaded
-          </Button>
           <Button size="sm" onClick={handleCalculate} disabled={calculating}>
             {calculating ? "Calculating…" : "Recalculate"}
           </Button>
@@ -163,11 +145,11 @@ function WorkbenchContent({ snapshotId }: { snapshotId: string }) {
         />
       ) : null}
 
-      {lines.length === 0 ? (
-        <EmptyState title="No lines in this section" body="Switch to the other lifecycle tab, or recalculate." />
+      {activeLines.length === 0 ? (
+        <EmptyState title="No active orders in this snapshot" body="Try recalculating, or upload the file again." />
       ) : (
         <OrderWorkbenchGrid
-          lines={lines}
+          lines={activeLines}
           workingsByLineId={workingsByLineId}
           issuesByLineId={issuesByLineId}
           openCorrectionColumnsByLineId={openCorrectionColumnsByLineId}

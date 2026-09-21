@@ -10,7 +10,8 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "@/components/ui/toast";
 import { useAuthStore } from "@/lib/auth-store";
-import { type Snapshot, type UploadPreview, workbenchApi } from "@/lib/workbench-api";
+import { type IngestionContract, type Snapshot, type UploadPreview, workbenchApi } from "@/lib/workbench-api";
+import { precheckWorkbook } from "@/lib/workbook-precheck";
 
 function formatRelativeTime(isoString: string): string {
   const minutesAgo = Math.max(0, Math.round((Date.now() - new Date(isoString).getTime()) / 60000));
@@ -45,6 +46,10 @@ function WorkbenchListContent() {
   const [file, setFile] = React.useState<File | null>(null);
   const [stage, setStage] = React.useState<Stage>("idle");
   const [dragActive, setDragActive] = React.useState(false);
+  const [contract, setContract] = React.useState<IngestionContract | null>(null);
+  // Why the chosen file can't be previewed — shown inline until the user picks another file.
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
+  const selectionCounter = React.useRef(0);
   // Starts true (first paint is always "loading") rather than being set
   // synchronously inside the effect below — only the async continuation
   // (after the awaited fetch) ever calls setLoading(false).
@@ -63,22 +68,38 @@ function WorkbenchListContent() {
     void loadSnapshots();
   }, [loadSnapshots]);
 
-  function selectFile(candidate: File | null) {
+  // The pre-check is advisory (the backend repeats it), so a failure to load
+  // the contract just means the file is checked on upload instead.
+  React.useEffect(() => {
+    workbenchApi
+      .getIngestionContract(accessToken)
+      .then(setContract)
+      .catch(() => setContract(null));
+  }, [accessToken]);
+
+  async function selectFile(candidate: File | null) {
+    const selection = ++selectionCounter.current;
+    setPreview(null);
+    setUploadError(null);
     if (candidate && !candidate.name.toLowerCase().endsWith(".xlsx")) {
-      toast({ title: "Only .xlsx files are supported", variant: "danger" });
+      setFile(null);
+      setUploadError("Only .xlsx files are supported. Please upload the daily Active Purchase Orders workbook.");
       return;
     }
     setFile(candidate);
-    setPreview(null);
+    if (!candidate || !contract) return;
+    const result = await precheckWorkbook(candidate, contract.required_sheet_name);
+    if (selection === selectionCounter.current && !result.ok) setUploadError(result.message);
   }
 
   async function handlePreview() {
     if (!file) return;
     setStage("uploading");
+    setUploadError(null);
     try {
       setPreview(await workbenchApi.uploadPreview(file, accessToken));
     } catch (err) {
-      toast({ title: err instanceof Error ? err.message : "Could not parse this file", variant: "danger" });
+      setUploadError(err instanceof Error ? err.message : "Could not read this file.");
     } finally {
       setStage("idle");
     }
@@ -107,8 +128,9 @@ function WorkbenchListContent() {
       <Card>
         <h2 className="text-lg font-semibold text-fg-primary">Upload Active Purchase Orders</h2>
         <p className="mt-1 text-sm text-fg-secondary">
-          Available to both Owner and Accountant (§11.2) — whoever the abattoir&apos;s email reaches. The diff against the
-          previous snapshot is shown before anything is committed.
+          Available to both Owner and Accountant (§11.2) — whoever the abattoir&apos;s email reaches. Only the Active Orders on the
+          &apos;{contract?.required_sheet_name ?? "Profitability Analysis"}&apos; tab are read. The diff against the previous
+          snapshot is shown before anything is committed.
         </p>
 
         <div
@@ -120,7 +142,7 @@ function WorkbenchListContent() {
           onDrop={(e) => {
             e.preventDefault();
             setDragActive(false);
-            selectFile(e.dataTransfer.files?.[0] ?? null);
+            void selectFile(e.dataTransfer.files?.[0] ?? null);
           }}
           className={`mt-4 flex flex-col items-center gap-2 rounded-md border-2 border-dashed p-6 text-center transition-colors ${
             dragActive ? "border-accent-default bg-accent-subtle" : "border-default bg-sunken"
@@ -139,13 +161,23 @@ function WorkbenchListContent() {
             id="upload-file"
             type="file"
             accept=".xlsx"
-            onChange={(e) => selectFile(e.target.files?.[0] ?? null)}
+            onChange={(e) => void selectFile(e.target.files?.[0] ?? null)}
             className="sr-only"
           />
-          <Button size="sm" onClick={handlePreview} disabled={!file || busy}>
+          <Button size="sm" onClick={handlePreview} disabled={!file || busy || uploadError !== null}>
             {stage === "uploading" ? STAGE_LABEL.uploading : "Preview"}
           </Button>
         </div>
+
+        {uploadError ? (
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="mt-3 rounded-md border border-status-breach-border bg-status-breach-bg px-3 py-2 text-sm font-medium text-status-breach-fg"
+          >
+            {uploadError}
+          </div>
+        ) : null}
 
         {preview ? (
           <div className="mt-4 rounded-md border border-default bg-sunken p-4">
@@ -160,14 +192,12 @@ function WorkbenchListContent() {
               </div>
             ) : null}
             <p className="text-sm text-fg-primary">
-              Detected layout: <span className="font-medium">{String(preview.detected_layout.strategy)}</span>
+              Reading tab: <span className="font-medium">{String(preview.detected_layout.sheet_name)}</span> — Active Orders only
             </p>
-            <p className="mt-1 text-sm text-fg-secondary">
-              {preview.active_count} active · {preview.loaded_count} loaded
-            </p>
+            <p className="mt-1 text-sm text-fg-secondary">{preview.active_count} active orders</p>
             <p className="mt-1 text-sm text-fg-secondary">
               vs previous snapshot: ✚ {preview.diff.summary.new_count} new · ✎ {preview.diff.summary.changed_count} changed ·
-              → {preview.diff.summary.moved_to_loaded_count} moved to loaded · ⊘ {preview.diff.summary.removed_count} removed
+              ⊘ {preview.diff.summary.removed_count} removed
             </p>
             <Button size="sm" className="mt-3" onClick={handleConfirm} disabled={busy}>
               {stage === "committing" || stage === "calculating" ? STAGE_LABEL[stage] : "Confirm and commit"}
