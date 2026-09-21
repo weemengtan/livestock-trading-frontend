@@ -31,6 +31,12 @@ import {
 import { strings } from "@/lib/strings";
 import { withErrorToast } from "@/lib/with-error-toast";
 
+// The API returns fixed-scale decimals ("14.0000000000"); show them the way a person writes them.
+function tidy(value: string | null | undefined): string {
+  if (!value) return "";
+  return value.includes(".") ? value.replace(/\.?0+$/, "") : value;
+}
+
 const WEEKDAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
 
 type CalendarDraftRow = SaleyardCalendarRow & { removed: boolean; isNew: boolean };
@@ -46,19 +52,25 @@ function EditForm({
 }) {
   const accessToken = useAuthStore((s) => s.accessToken);
   const [open, setOpen] = React.useState(false);
-  const [cifBuffer, setCifBuffer] = React.useState(active.cif_buffer_per_kg);
+  const [cifBuffer, setCifBuffer] = React.useState(tidy(active.cif_buffer_per_kg));
   const [note, setNote] = React.useState("");
   const [factors, setFactors] = React.useState<Record<string, string>>(
-    Object.fromEntries(species.map((s) => [s.code, active.dnbp_factor_by_species[s.code] ?? ""]))
+    Object.fromEntries(species.map((s) => [s.code, tidy(active.dnbp_factor_by_species[s.code])]))
   );
   const [weights, setWeights] = React.useState<Record<string, string>>(
-    Object.fromEntries(species.map((s) => [s.code, active.standard_weight_by_species[s.code] ?? ""]))
+    Object.fromEntries(species.map((s) => [s.code, tidy(active.standard_weight_by_species[s.code])]))
   );
-  const [bidThreshold, setBidThreshold] = React.useState(active.bid_check_close_threshold_pct);
-  const [tolerance, setTolerance] = React.useState(active.buyer_weight_band_tolerance_pct);
+  const [bidThreshold, setBidThreshold] = React.useState(tidy(active.bid_check_close_threshold_pct));
+  const [tolerance, setTolerance] = React.useState(tidy(active.buyer_weight_band_tolerance_pct));
   const [staleHours, setStaleHours] = React.useState(String(active.stale_instruction_hours));
   const [calendar, setCalendar] = React.useState<CalendarDraftRow[]>(
-    active.saleyard_calendar.map((row) => ({ ...row, note: row.note ?? "", removed: false, isNew: false }))
+    active.saleyard_calendar.map((row) => ({
+      ...row,
+      prepayment_aud: tidy(row.prepayment_aud),
+      note: row.note ?? "",
+      removed: false,
+      isNew: false,
+    }))
   );
   const [newYard, setNewYard] = React.useState({ saleyard: "", day: "MONDAY", prepayment_aud: "0" });
   const [submitting, setSubmitting] = React.useState(false);
