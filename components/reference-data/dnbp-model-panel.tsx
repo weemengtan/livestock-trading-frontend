@@ -454,8 +454,13 @@ export function DnbpModelPanel() {
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">Ref data version</p>
             <p className="text-sm text-fg-secondary">{active.ref_data_version}</p>
-            <p className="mt-2 text-xs font-medium uppercase tracking-wide text-fg-tertiary">
+            <p className="mt-2 flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-fg-tertiary">
               {strings.referenceData.model.modelType}
+              <InfoTooltip
+                label={`About the ${strings.referenceData.model.modelType}`}
+                what={strings.referenceData.model.tooltips.modelType.what}
+                how={strings.referenceData.model.tooltips.modelType.how}
+              />
             </p>
             <Badge variant="neutral">{active.model_type}</Badge>
           </div>
@@ -476,28 +481,48 @@ export function DnbpModelPanel() {
 
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">
+            <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-fg-tertiary">
               {strings.referenceData.model.bidCheckThreshold}
+              <InfoTooltip
+                label={`About ${strings.referenceData.model.bidCheckThreshold}`}
+                what={strings.referenceData.model.tooltips.bidCheckThreshold.what}
+                how={strings.referenceData.model.tooltips.bidCheckThreshold.how}
+              />
             </p>
             <p className="text-lg font-semibold tabular-nums">{Number(active.bid_check_close_threshold_pct)}</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">
+            <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-fg-tertiary">
               {strings.referenceData.model.weightTolerance}
+              <InfoTooltip
+                label={`About ${strings.referenceData.model.weightTolerance}`}
+                what={strings.referenceData.model.tooltips.weightTolerance.what}
+                how={strings.referenceData.model.tooltips.weightTolerance.how}
+              />
             </p>
             <p className="text-lg font-semibold tabular-nums">{Number(active.buyer_weight_band_tolerance_pct)}</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">
+            <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-fg-tertiary">
               {strings.referenceData.model.staleHours}
+              <InfoTooltip
+                label={`About ${strings.referenceData.model.staleHours}`}
+                what={strings.referenceData.model.tooltips.staleHours.what}
+                how={strings.referenceData.model.tooltips.staleHours.how}
+              />
             </p>
             <p className="text-lg font-semibold tabular-nums">{active.stale_instruction_hours}</p>
           </div>
         </div>
 
         <div className="mt-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">
+          <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-fg-tertiary">
             {strings.referenceData.model.calendarTitle}
+            <InfoTooltip
+              label={`About the ${strings.referenceData.model.calendarTitle}`}
+              what={strings.referenceData.model.tooltips.calendar.what}
+              how={strings.referenceData.model.tooltips.calendar.how}
+            />
           </p>
           <div className="mt-2 flex flex-col gap-1 text-sm">
             {active.saleyard_calendar.map((row) => (

@@ -128,6 +128,28 @@ export const strings = {
       standardWeight: "Standard weight by species (kg)",
       editButton: "Propose a change",
       modelType: "DNBP model",
+      tooltips: {
+        modelType: {
+          what: "Which pricing formula the Do Not Buy Price uses. Today there is one: the price minus the CIF buffer, multiplied by the species factor.",
+          how: "Each reference-data version names its formula. A new formula is added by a developer and reviewed; this screen only chooses among the ones that exist.",
+        },
+        bidCheckThreshold: {
+          what: "How close a buyer's bid can get to the Do Not Buy Price before Bid Check warns them, instead of showing a clear pass.",
+          how: "A bid within this percentage below the ceiling shows as CLOSE (amber). At or under it by more than this shows PASS; over the ceiling is a breach.",
+        },
+        weightTolerance: {
+          what: "How far, in percent, a buyer's animal weights may sit either side of the species' standard weight before the buyer's screen treats the weight as unusual.",
+          how: "Used to draw the acceptable weight band on the buyer's instruction: the standard weight, plus and minus this percentage.",
+        },
+        staleHours: {
+          what: "How long a published instruction can sit unchanged before the app tells you it may be out of date.",
+          how: "If the latest publication is older than this many hours, a stale banner appears on the buyer's screen and on the dashboard.",
+        },
+        calendar: {
+          what: "Which saleyard trades on which day of the week, and how much prepayment each one needs.",
+          how: "Drives the prepayment block on the Buy Instruction and the buyer's default saleyard for today. Each row is a saleyard, its trading day, the prepayment amount and an optional note.",
+        },
+      },
       operationalTitle: "Operational settings",
       bidCheckThreshold: "Bid Check CLOSE threshold (%)",
       weightTolerance: "Buyer weight band tolerance (%)",
@@ -174,6 +196,36 @@ export const strings = {
       title: "Upload contract",
       subtitle:
         "What an uploaded workbook must contain — the required tab, the Active Orders markers and the accepted column headers. Every change is a new version, activated by a second person, and audited.",
+      tooltips: {
+        sheetName: {
+          what: "The name of the tab in the abattoir's Excel file that holds the orders. The app reads this tab and no other.",
+          how: "When a file is uploaded the app looks for a visible tab with exactly this name (capital letters and spacing do not matter). If it is missing or hidden, the upload is refused with a message saying so.",
+        },
+        activeMarker: {
+          what: "The words that mark the start of the Active Orders section near the top of that tab.",
+          how: "The app looks in the first few rows for a cell containing all of these words, in any order. If it cannot find one it refuses the file rather than guessing.",
+        },
+        endMarker: {
+          what: "The words that mark where Active Orders end. Everything from that row down (the orders already loaded) is never read.",
+          how: "The app reads rows from the column headings down and stops at the first row containing all of these words.",
+        },
+        headerScanRows: {
+          what: "How many rows from the top the app searches to find the row of column headings.",
+          how: "The app checks each of these rows and picks the one with the most recognised headings. A larger number copes with files that have more title rows above the table.",
+        },
+        minMatches: {
+          what: "How many recognised column names a row needs before the app decides it is the heading row.",
+          how: "Each cell in a row is compared with the accepted headers below. A row with at least this many matches is treated as the heading row; a lower number is more forgiving, a higher number is stricter.",
+        },
+        columns: {
+          what: "Every column the app can read from the file, whether it is required, and the spellings of its heading that the app accepts.",
+          how: "Headings are compared ignoring capital letters, punctuation and extra spaces. If the abattoir renames a heading, add the new spelling in a new version so the file is accepted again. Required columns must be found or the upload is refused.",
+        },
+        versions: {
+          what: "The history of these rules. Only one version is active at a time.",
+          how: "Every change creates a new version that someone other than its author activates. Each uploaded snapshot records which version it was read under.",
+        },
+      },
       activeBadge: "Active",
       draftBadge: "Draft",
       proposeButton: "Propose a new version",

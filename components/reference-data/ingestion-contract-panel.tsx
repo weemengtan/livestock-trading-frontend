@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/toast";
@@ -26,6 +27,15 @@ import { strings } from "@/lib/strings";
 import { withErrorToast } from "@/lib/with-error-toast";
 
 const t = strings.referenceData.contract;
+
+function LabelWithTooltip({ text, tip }: { text: string; tip: { what: string; how: string } }) {
+  return (
+    <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-fg-tertiary">
+      {text}
+      <InfoTooltip label={`About ${text}`} what={tip.what} how={tip.how} />
+    </p>
+  );
+}
 
 function words(text: string): string[] {
   return text
@@ -214,28 +224,28 @@ function Summary({ contract, fields }: { contract: IngestionContractRecord; fiel
     <div className="mt-4 flex flex-col gap-3 text-sm">
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">{t.sheetName}</p>
+          <LabelWithTooltip text={t.sheetName} tip={t.tooltips.sheetName} />
           <p className="font-semibold">{contract.required_sheet_name}</p>
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">{t.activeMarker}</p>
+          <LabelWithTooltip text={t.activeMarker} tip={t.tooltips.activeMarker} />
           <p>{contract.active_title_tokens.join(" ")}</p>
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">{t.endMarker}</p>
+          <LabelWithTooltip text={t.endMarker} tip={t.tooltips.endMarker} />
           <p>{contract.section_end_tokens.join(" ")}</p>
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">{t.headerScanRows}</p>
+          <LabelWithTooltip text={t.headerScanRows} tip={t.tooltips.headerScanRows} />
           <p className="tabular-nums">{contract.header_scan_rows}</p>
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">{t.minMatches}</p>
+          <LabelWithTooltip text={t.minMatches} tip={t.tooltips.minMatches} />
           <p className="tabular-nums">{contract.min_header_matches}</p>
         </div>
       </div>
       <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">{t.fieldsTitle}</p>
+        <LabelWithTooltip text={t.fieldsTitle} tip={t.tooltips.columns} />
         <div className="mt-1 flex flex-col gap-1">
           {orderedFields.map((field) => (
             <div key={field} className="flex flex-wrap items-baseline gap-x-3">
@@ -319,7 +329,14 @@ export function IngestionContractPanel() {
       </Card>
 
       <Card>
-        <p className="text-sm font-semibold text-fg-primary">{strings.referenceData.model.versionHistory}</p>
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-fg-primary">
+          {strings.referenceData.model.versionHistory}
+          <InfoTooltip
+            label={`About the ${strings.referenceData.model.versionHistory}`}
+            what={t.tooltips.versions.what}
+            how={t.tooltips.versions.how}
+          />
+        </p>
         <div className="mt-2 flex flex-col gap-2">
           {contracts.map((c) => (
             <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
