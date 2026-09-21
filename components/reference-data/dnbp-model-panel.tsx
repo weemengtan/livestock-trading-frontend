@@ -365,6 +365,10 @@ export function DnbpModelPanel() {
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">Ref data version</p>
             <p className="text-sm text-fg-secondary">{active.ref_data_version}</p>
+            <p className="mt-2 text-xs font-medium uppercase tracking-wide text-fg-tertiary">
+              {strings.referenceData.model.modelType}
+            </p>
+            <Badge variant="neutral">{active.model_type}</Badge>
           </div>
         </div>
 

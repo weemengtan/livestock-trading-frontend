@@ -14,6 +14,8 @@ export type SaleyardCalendarRow = {
 export type ActiveConfig = {
   ref_data_version: string;
   ref_data_version_id: string | null;
+  model_type: string;
+  available_model_types: string[];
   cif_buffer_per_kg: string;
   dnbp_factor_by_species: Record<string, string>;
   standard_weight_by_species: Record<string, string>;
@@ -29,6 +31,7 @@ export type ReferenceDataVersion = {
   effective_from: string;
   created_by: string | null;
   note: string | null;
+  model_type: string;
   is_active: boolean;
   activated_at: string | null;
   activated_by: string | null;

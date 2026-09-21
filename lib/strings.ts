@@ -127,6 +127,7 @@ export const strings = {
       dnbpFactor: "DNBP factor by species",
       standardWeight: "Standard weight by species (kg)",
       editButton: "Propose a change",
+      modelType: "DNBP model",
       operationalTitle: "Operational settings",
       bidCheckThreshold: "Bid Check CLOSE threshold (%)",
       weightTolerance: "Buyer weight band tolerance (%)",
