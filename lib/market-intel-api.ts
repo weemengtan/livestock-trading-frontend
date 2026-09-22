@@ -51,6 +51,8 @@ export type BulkObservationSyncItemResult = {
   is_possible_duplicate?: boolean | null;
   error_code?: string | null;
   error_message?: string | null;
+  retriable?: boolean | null;
+  details?: { violations?: string[] } | null;
 };
 
 // Matches backend/schemas/market_intel.py::MarketObservationResponse /

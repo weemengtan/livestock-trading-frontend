@@ -436,9 +436,14 @@ export const strings = {
       duplicateWarning: "Same agent, pen and price logged in the last 2 minutes — check this isn't a duplicate.",
       totals: { heads: "Heads", kg: "Total kg", spend: "Spend", avg: "Avg $/kg", breaches: "Breaches" },
       empty: "No buys logged yet today.",
+      needsAttention: {
+        title: "Needs attention — these were rejected and won't sync on their own",
+        edit: "Edit",
+        discard: "Discard",
+      },
       tooltips: {
         totals: {
-          what: "A running summary of everything you've logged today: total animals, total weight, total spend, your average price per kilogram, and how many were over the ceiling.",
+          what: "A running summary of everything you've logged today: total animals, total weight, total spend, your average price per kilogram, and how many were over the ceiling. Excludes anything listed under \"Needs attention\" — those were never accepted, so they're not counted as logged.",
           how: "Added up live from every buy entry logged today, including any still waiting to sync from offline.",
         },
       },
@@ -461,16 +466,17 @@ export const strings = {
       saving: "Saving…",
       queuedEmpty: "No observations queued this session.",
       queuedHint: "Submitted observations aren't shown back here — they go straight to the office.",
+      needsAttention: { edit: "Edit", discard: "Discard" },
     },
     sync: {
       queued: "Queued",
       syncing: "Syncing…",
       synced: "Synced",
-      conflict: "Failed — will retry",
+      failed: "Failed — needs your attention",
       syncNow: "Sync now",
       tooltip: {
         what: "Whether this entry has safely reached the office's server yet — useful when you've been buying with no signal.",
-        how: "Queued: saved on this phone, waiting for a connection. Syncing: sending now. Synced: confirmed received by the server. Failed: it will keep retrying automatically.",
+        how: "Queued: saved on this phone, waiting for a connection. Syncing: sending now. Synced: confirmed received by the server. Failed: rejected and won't retry on its own — fix and resave, or discard it.",
       },
     },
     statusBadge: {
@@ -531,7 +537,9 @@ export const strings = {
     reconciliation: {
       title: "Reconciliation",
       subtitle: "Trading week",
+      rowHint: "Click a row to see the individual buy entries behind it.",
       saleyard: "Saleyard",
+      species: "Species",
       schw: "SCHW",
       heads: "Heads",
       actualCostColumn: "Actual Cost",
@@ -544,6 +552,18 @@ export const strings = {
       expectedCost: "Expected Cost (C)",
       actualCost: "Actual Cost (D)",
       costVariance: "Cost Variance (C − D)",
+      entries: {
+        buyer: "Buyer",
+        agent: "Agent",
+        pen: "Pen",
+        heads: "Heads",
+        price: "Price",
+        weight: "Weight",
+        impliedPrice: "$/kg",
+        loggedAt: "Logged at",
+        loading: "Loading buy entries…",
+        empty: "No buy entries in this group.",
+      },
     },
     reconciliationTooltips: {
       orderedSchw: {

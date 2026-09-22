@@ -20,8 +20,9 @@ import { useAuthStore } from "@/lib/auth-store";
 import { melbourneDate } from "@/lib/business-time";
 import { strings } from "@/lib/strings";
 import { scoreBid, CLOSE_THRESHOLD_PCT } from "@/lib/buyer/bidcheck";
+import { checkEntryBounds } from "@/lib/buyer/entry-bounds";
 import { buyerApi } from "@/lib/buyer-api";
-import { buyerDb, cacheHistoryEntry, type CachedDnbp } from "@/lib/buyer/db";
+import { buyerDb, cacheHistoryEntry, discardPendingEntry, type CachedDnbp, type PendingEntry } from "@/lib/buyer/db";
 import { useDnbpCurrent } from "@/lib/buyer/use-dnbp-current";
 import { useSaleyards } from "@/lib/buyer/use-saleyards";
 import { DnbpRequiredNotice } from "@/components/buyer/dnbp-required-notice";
@@ -83,6 +84,12 @@ function BuyLogContent() {
   const historyResult = useLiveQuery(() => buyerDb.entry_history.where("trade_date").equals(today).toArray(), [today]);
   const pendingResult = useLiveQuery(() => buyerDb.pending_entries.toArray(), []);
   const pending = React.useMemo(() => pendingResult ?? [], [pendingResult]);
+  // "failed" is terminal (lib/buyer/db.ts's SyncStatus docstring) — it
+  // never became a real buy_entries row and never will as-is, so it's kept
+  // out of `rows`/`totals` below and shown in its own "Needs attention"
+  // section instead, requiring the buyer to fix-and-resave or discard it.
+  const activePending = React.useMemo(() => pending.filter((p) => p.sync_status !== "failed"), [pending]);
+  const failedPending = React.useMemo(() => pending.filter((p) => p.sync_status === "failed"), [pending]);
 
   React.useEffect(() => {
     if (draft) router.replace("/buyer/buy-log");
@@ -104,8 +111,19 @@ function BuyLogContent() {
       ? scoreBid({ pricePerHead: price, weightKg: weight, dnbpPerKg: speciesLine.dnbp_per_kg, closeThresholdPct: CLOSE_THRESHOLD_PCT })
       : null;
 
+  // weight_band is the buyer-facing ±15% tolerance band already published
+  // per species; standard weight is its midpoint (min+max)/2 — same
+  // reference data checkEntryBounds' 0.2x-5x outer sanity net is built on.
+  const standardWeightKg = speciesLine?.weight_band
+    ? new Decimal(speciesLine.weight_band.min).plus(speciesLine.weight_band.max).dividedBy(2)
+    : null;
+  const boundsViolations =
+    price && weight
+      ? checkEntryBounds({ headCount: heads || "0", pricePerHead: price, weightKg: weight, species, standardWeightKg })
+      : [];
+
   async function handleSave() {
-    if (!result || !saleyard.trim()) return;
+    if (!result || !saleyard.trim() || boundsViolations.length > 0) return;
     if (result.isBreach && !breachReason) {
       toast({ title: strings.buyer.buyLog.breachReasonLabel, variant: "danger" });
       return;
@@ -114,7 +132,7 @@ function BuyLogContent() {
     // §12.4 — "warn if agent + pen + price repeat within 2 minutes."
     // Evaluated at save time (an event handler, not render), non-blocking.
     const now = Date.now();
-    const isDuplicate = pending.some(
+    const isDuplicate = activePending.some(
       (p) =>
         p.payload.agent === agent &&
         p.payload.pen === pen &&
@@ -158,13 +176,36 @@ function BuyLogContent() {
     }
   }
 
+  // "Needs attention" actions (see SyncStatus's docstring) — a "failed"
+  // entry never became a real buy and never will as-is, so the buyer must
+  // either fix-and-resave (repopulate the form, discard the stale queued
+  // copy so resaving doesn't leave two) or explicitly discard it.
+  function handleEditFailed(entry: PendingEntry) {
+    setSaleyardChoice(entry.payload.saleyard);
+    setSpeciesChoice(entry.payload.species);
+    setAgent(entry.payload.agent ?? "");
+    setPen(entry.payload.pen ?? "");
+    setHeads(String(entry.payload.head_count));
+    setPrice(entry.payload.price_per_head);
+    setWeight(entry.payload.weight_kg);
+    setDescription(entry.payload.description ?? "");
+    setFreight(entry.payload.freight_per_head ?? "");
+    setCost(entry.payload.other_cost_per_kg ?? "");
+    void discardPendingEntry(entry.client_uuid);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function handleDiscardFailed(clientUuid: string) {
+    await discardPendingEntry(clientUuid);
+  }
+
   const rows = React.useMemo(() => {
     const history = historyResult ?? [];
     const byUuid = new Map<string, { client_uuid: string; species: string; agent: string | null; pen: string | null; head_count: number; price_per_head: string; weight_kg: string; implied_price_per_kg: string; is_breach: boolean; synced: boolean }>();
     for (const h of history) {
       byUuid.set(h.client_uuid, { ...h, synced: true });
     }
-    for (const p of pending) {
+    for (const p of activePending) {
       if (!byUuid.has(p.client_uuid)) {
         const scored = speciesForPayload(cached, p.payload)
           ? scoreBid({
@@ -189,7 +230,7 @@ function BuyLogContent() {
       }
     }
     return Array.from(byUuid.values()).reverse();
-  }, [historyResult, pending, cached]);
+  }, [historyResult, activePending, cached]);
 
   const totals = React.useMemo(() => {
     let totalHeads = 0;
@@ -269,12 +310,44 @@ function BuyLogContent() {
 
       {result?.isBreach ? <BreachReasonChips value={breachReason} onChange={setBreachReason} /> : null}
 
-      <Button size="lg" onClick={handleSave} disabled={!result || !saleyard.trim() || saving}>
+      <Button size="lg" onClick={handleSave} disabled={!result || !saleyard.trim() || boundsViolations.length > 0 || saving}>
         {saving ? strings.buyer.buyLog.saving : strings.buyer.buyLog.save}
       </Button>
       {!result ? <p className="-mt-2 text-center text-sm text-fg-tertiary">{strings.buyer.buyLog.saveHint}</p> : null}
       {result && !saleyard.trim() ? (
         <p className="-mt-2 text-center text-sm text-fg-tertiary">{strings.buyer.buyLog.saleyardRequiredHint}</p>
+      ) : null}
+      {result && saleyard.trim() && boundsViolations.length > 0 ? (
+        <div className="-mt-2 flex flex-col gap-1 text-center text-sm text-status-breach-fg">
+          {boundsViolations.map((v) => (
+            <p key={v}>{v}</p>
+          ))}
+        </div>
+      ) : null}
+
+      {failedPending.length > 0 ? (
+        <div className="flex flex-col gap-2 rounded-md border border-status-breach-border bg-status-breach-bg p-3">
+          <p className="text-sm font-semibold text-status-breach-fg">{strings.buyer.buyLog.needsAttention.title}</p>
+          {failedPending.map((entry) => (
+            <div key={entry.client_uuid} className="flex flex-col gap-1 rounded-md border border-subtle bg-surface p-2 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <span>
+                  {entry.payload.species} · {entry.payload.agent ?? "—"} · {entry.payload.pen ?? "—"} · {entry.payload.head_count}hd
+                </span>
+                <SyncStatusBadge status="failed" />
+              </div>
+              {entry.error_message ? <p className="text-xs text-fg-tertiary">{entry.error_message}</p> : null}
+              <div className="flex gap-2">
+                <Button size="sm" variant="secondary" onClick={() => handleEditFailed(entry)}>
+                  {strings.buyer.buyLog.needsAttention.edit}
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => void handleDiscardFailed(entry.client_uuid)}>
+                  {strings.buyer.buyLog.needsAttention.discard}
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : null}
         </>
       ) : (

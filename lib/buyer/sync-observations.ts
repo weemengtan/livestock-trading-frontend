@@ -18,7 +18,9 @@ export async function flushPendingObservations(accessToken: string | null): Prom
   if (flushing || !accessToken) return { synced: 0, failed: 0 };
   flushing = true;
   try {
-    const pending = await buyerDb.pending_observations.where("sync_status").anyOf(["queued", "conflict"]).toArray();
+    // "failed" is terminal — excluded from auto-retry, same reasoning as
+    // lib/buyer/sync.ts's flushPendingEntries.
+    const pending = await buyerDb.pending_observations.where("sync_status").anyOf(["queued"]).toArray();
     if (pending.length === 0) return { synced: 0, failed: 0 };
 
     await buyerDb.pending_observations
@@ -39,9 +41,11 @@ export async function flushPendingObservations(accessToken: string | null): Prom
         await buyerDb.pending_observations.delete(result.client_uuid);
       } else {
         failed += 1;
+        const violations = result.details?.violations;
+        const message = violations && violations.length > 0 ? violations.join(" ") : result.error_message ?? "Sync failed";
         await buyerDb.pending_observations.update(result.client_uuid, {
-          sync_status: "conflict",
-          error_message: result.error_message ?? "Sync failed",
+          sync_status: result.retriable === false ? "failed" : "queued",
+          error_message: message,
         });
       }
     }

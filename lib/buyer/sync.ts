@@ -19,7 +19,10 @@ export async function flushPendingEntries(accessToken: string | null): Promise<F
   if (flushing || !accessToken) return { synced: 0, failed: 0 };
   flushing = true;
   try {
-    const pending = await buyerDb.pending_entries.where("sync_status").anyOf(["queued", "conflict"]).toArray();
+    // "failed" is terminal (see SyncStatus's docstring) — it's excluded
+    // from the auto-retry set on purpose, so a rejection that will never
+    // succeed doesn't get hammered at the server every 30s forever.
+    const pending = await buyerDb.pending_entries.where("sync_status").anyOf(["queued"]).toArray();
     if (pending.length === 0) return { synced: 0, failed: 0 };
 
     await buyerDb.pending_entries
@@ -40,9 +43,17 @@ export async function flushPendingEntries(accessToken: string | null): Promise<F
         await buyerDb.pending_entries.delete(result.client_uuid);
       } else {
         failed += 1;
+        // retriable !== false covers both explicit true and the
+        // legacy/unset case — only an explicit false (a structured
+        // AppError) is terminal (see AppError.retriable's docstring).
+        // Prefer the specific violation list (e.g. "Weight for VEAL must
+        // be between 3.4kg and 85.0kg per head.") over the generic
+        // top-level message — that's what the buyer can actually act on.
+        const violations = result.details?.violations;
+        const message = violations && violations.length > 0 ? violations.join(" ") : result.error_message ?? "Sync failed";
         await buyerDb.pending_entries.update(result.client_uuid, {
-          sync_status: "conflict",
-          error_message: result.error_message ?? "Sync failed",
+          sync_status: result.retriable === false ? "failed" : "queued",
+          error_message: message,
         });
       }
     }

@@ -19,10 +19,15 @@ import {
   type BuyInstruction,
   type BuyInstructionLine,
   type Reconciliation,
+  type ReconciliationEntry,
 } from "@/lib/buy-instructions-api";
 
 function money(value: string, dp = 2) {
   return Number(value).toFixed(dp);
+}
+
+function groupKey(saleyard: string, species: string) {
+  return `${saleyard}\u0000${species}`;
 }
 
 export default function BuyInstructionDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -45,6 +50,9 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
   const [loading, setLoading] = React.useState(true);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [fillDrafts, setFillDrafts] = React.useState<Record<string, { label: string; amount: string }>>({});
+  const [expandedGroup, setExpandedGroup] = React.useState<string | null>(null);
+  const [entriesByGroup, setEntriesByGroup] = React.useState<Record<string, ReconciliationEntry[]>>({});
+  const [entriesLoading, setEntriesLoading] = React.useState<string | null>(null);
 
   const load = React.useCallback(async () => {
     try {
@@ -72,6 +80,26 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
   React.useEffect(() => {
     void load();
   }, [load]);
+
+  async function toggleReconciliationGroup(saleyard: string, species: string) {
+    const key = groupKey(saleyard, species);
+    if (expandedGroup === key) {
+      setExpandedGroup(null);
+      return;
+    }
+    setExpandedGroup(key);
+    if (entriesByGroup[key]) return;
+    setEntriesLoading(key);
+    try {
+      const entries = await buyInstructionsApi.getReconciliationEntries(id, saleyard, species, accessToken);
+      setEntriesByGroup((prev) => ({ ...prev, [key]: entries }));
+    } catch (e) {
+      toast({ title: e instanceof Error ? e.message : "Could not load buy entries", variant: "danger" });
+      setExpandedGroup(null);
+    } finally {
+      setEntriesLoading(null);
+    }
+  }
 
   async function withBusy(key: string, fn: () => Promise<void>) {
     setBusy(key);
@@ -316,11 +344,15 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
           <p className="text-sm text-fg-tertiary">
             {strings.buyInstructions.reconciliation.subtitle}: {reconciliation.week_start} – {reconciliation.week_end}
           </p>
+          {reconciliation.by_saleyard.length > 0 ? (
+            <p className="text-xs text-fg-tertiary">{strings.buyInstructions.reconciliation.rowHint}</p>
+          ) : null}
 
           <table className="mt-3 w-full text-sm">
             <thead>
               <tr className="border-b border-subtle text-left text-fg-tertiary">
                 <th className="py-2 pr-3">{strings.buyInstructions.reconciliation.saleyard}</th>
+                <th className="py-2 pr-3">{strings.buyInstructions.reconciliation.species}</th>
                 <th className="py-2 pr-3 text-right">{strings.buyInstructions.reconciliation.schw}</th>
                 <th className="py-2 pr-3 text-right">{strings.buyInstructions.reconciliation.heads}</th>
                 <th className="py-2 text-right">{strings.buyInstructions.reconciliation.actualCostColumn}</th>
@@ -329,19 +361,89 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
             <tbody>
               {reconciliation.by_saleyard.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-3 text-fg-tertiary">
+                  <td colSpan={5} className="py-3 text-fg-tertiary">
                     No buys recorded in this trading week yet.
                   </td>
                 </tr>
               ) : (
-                reconciliation.by_saleyard.map((row) => (
-                  <tr key={row.saleyard} className="border-b border-subtle">
-                    <td className="py-2 pr-3 font-medium">{row.saleyard}</td>
-                    <td className="py-2 pr-3 text-right" data-numeric>{money(row.schw_kg)}</td>
-                    <td className="py-2 pr-3 text-right" data-numeric>{row.heads}</td>
-                    <td className="py-2 text-right" data-numeric>{money(row.actual_cost)}</td>
-                  </tr>
-                ))
+                reconciliation.by_saleyard.map((row) => {
+                  const key = groupKey(row.saleyard, row.species);
+                  const isOpen = expandedGroup === key;
+                  const entries = entriesByGroup[key];
+                  return (
+                    <React.Fragment key={key}>
+                      <tr
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={isOpen}
+                        onClick={() => void toggleReconciliationGroup(row.saleyard, row.species)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            void toggleReconciliationGroup(row.saleyard, row.species);
+                          }
+                        }}
+                        className="cursor-pointer border-b border-subtle hover:bg-sunken"
+                      >
+                        <td className="py-2 pr-3 font-medium">{row.saleyard}</td>
+                        <td className="py-2 pr-3">{row.species}</td>
+                        <td className="py-2 pr-3 text-right" data-numeric>{money(row.schw_kg)}</td>
+                        <td className="py-2 pr-3 text-right" data-numeric>{row.heads}</td>
+                        <td className="py-2 text-right" data-numeric>{money(row.actual_cost)}</td>
+                      </tr>
+                      {isOpen ? (
+                        <tr className="border-b border-subtle bg-sunken">
+                          <td colSpan={5} className="px-3 py-2">
+                            {entriesLoading === key ? (
+                              <p className="py-2 text-sm text-fg-tertiary">{strings.buyInstructions.reconciliation.entries.loading}</p>
+                            ) : !entries || entries.length === 0 ? (
+                              <p className="py-2 text-sm text-fg-tertiary">{strings.buyInstructions.reconciliation.entries.empty}</p>
+                            ) : (
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="text-left text-fg-tertiary">
+                                    <th className="py-1 pr-3">{strings.buyInstructions.reconciliation.entries.buyer}</th>
+                                    <th className="py-1 pr-3">{strings.buyInstructions.reconciliation.entries.agent}</th>
+                                    <th className="py-1 pr-3">{strings.buyInstructions.reconciliation.entries.pen}</th>
+                                    <th className="py-1 pr-3 text-right">{strings.buyInstructions.reconciliation.entries.heads}</th>
+                                    <th className="py-1 pr-3 text-right">{strings.buyInstructions.reconciliation.entries.price}</th>
+                                    <th className="py-1 pr-3 text-right">{strings.buyInstructions.reconciliation.entries.weight}</th>
+                                    <th className="py-1 pr-3 text-right">{strings.buyInstructions.reconciliation.entries.impliedPrice}</th>
+                                    <th className="py-1 text-right">{strings.buyInstructions.reconciliation.entries.loggedAt}</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {entries.map((e) => (
+                                    <tr key={e.id} className="border-t border-subtle">
+                                      <td className="py-1 pr-3">{e.buyer_email}</td>
+                                      <td className="py-1 pr-3">{e.agent ?? "—"}</td>
+                                      <td className="py-1 pr-3">{e.pen ?? "—"}</td>
+                                      <td className="py-1 pr-3 text-right" data-numeric>{e.head_count}</td>
+                                      <td className="py-1 pr-3 text-right" data-numeric>{money(e.price_per_head)}</td>
+                                      <td className="py-1 pr-3 text-right" data-numeric>{money(e.weight_kg)}</td>
+                                      <td className="py-1 pr-3 text-right" data-numeric>
+                                        <span className="inline-flex items-center gap-1">
+                                          <span
+                                            className={e.is_breach ? "h-1.5 w-1.5 rounded-full bg-status-breach-border" : "h-1.5 w-1.5 rounded-full bg-status-pass-border"}
+                                            aria-hidden
+                                          />
+                                          ${money(e.implied_price_per_kg)}
+                                        </span>
+                                      </td>
+                                      <td className="py-1 text-right" data-numeric>
+                                        {new Date(e.client_created_at).toLocaleString()}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            )}
+                          </td>
+                        </tr>
+                      ) : null}
+                    </React.Fragment>
+                  );
+                })
               )}
             </tbody>
           </table>

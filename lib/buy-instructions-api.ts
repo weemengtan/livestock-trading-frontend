@@ -42,6 +42,7 @@ export type BuyInstruction = {
 
 export type SaleyardReconciliation = {
   saleyard: string;
+  species: string;
   schw_kg: string;
   heads: number;
   actual_cost: string;
@@ -63,6 +64,21 @@ export type Reconciliation = {
   week_end: string;
   by_saleyard: SaleyardReconciliation[];
   summary: ReconciliationSummary;
+};
+
+export type ReconciliationEntry = {
+  id: string;
+  buyer_email: string;
+  trade_date: string;
+  agent: string | null;
+  pen: string | null;
+  head_count: number;
+  price_per_head: string;
+  weight_kg: string;
+  implied_price_per_kg: string;
+  is_breach: boolean;
+  breach_reason: string | null;
+  client_created_at: string;
 };
 
 function auth(accessToken: string | null) {
@@ -106,6 +122,12 @@ export const buyInstructionsApi = {
 
   getReconciliation: (id: string, accessToken: string | null) =>
     apiFetch<Reconciliation>(`/buy-instructions/${id}/reconciliation`, auth(accessToken)),
+
+  getReconciliationEntries: (id: string, saleyard: string, species: string, accessToken: string | null) =>
+    apiFetch<ReconciliationEntry[]>(
+      `/buy-instructions/${id}/reconciliation/entries?saleyard=${encodeURIComponent(saleyard)}&species=${encodeURIComponent(species)}`,
+      auth(accessToken)
+    ),
 
   downloadExport: (id: string, format: "pdf" | "xlsx", accessToken: string | null) =>
     apiFetchBlob(`/buy-instructions/${id}/export?format=${format}`, auth(accessToken)),

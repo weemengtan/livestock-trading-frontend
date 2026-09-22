@@ -108,6 +108,8 @@ export type BulkSyncItemResult = {
   is_possible_duplicate?: boolean | null;
   error_code?: string | null;
   error_message?: string | null;
+  retriable?: boolean | null;
+  details?: { violations?: string[] } | null;
 };
 
 function auth(accessToken: string | null) {

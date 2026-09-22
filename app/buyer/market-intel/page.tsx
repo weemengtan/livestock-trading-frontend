@@ -18,7 +18,7 @@ import { useSpecies } from "@/lib/buyer/use-species";
 import { submitObservation } from "@/lib/buyer/create-observation";
 import { flushPendingObservations } from "@/lib/buyer/sync-observations";
 import { useLiveQuery } from "dexie-react-hooks";
-import { buyerDb } from "@/lib/buyer/db";
+import { buyerDb, discardPendingObservation, type PendingObservation } from "@/lib/buyer/db";
 
 export default function MarketIntelPage() {
   return (
@@ -99,6 +99,29 @@ function MarketIntelContent() {
     }
   }
 
+  // Same "Needs attention" pattern as Buy Log (lib/buyer/db.ts's SyncStatus
+  // docstring): a "failed" observation is terminal — repopulate the form so
+  // the buyer can fix and resave, discarding the stale queued copy so
+  // resaving doesn't leave two, or let them discard it outright.
+  function handleEditFailed(entry: PendingObservation) {
+    setSaleyardChoice(entry.payload.saleyard);
+    setSpeciesChoice(entry.payload.species);
+    setCompetitor(entry.payload.competitor_name);
+    setAgent(entry.payload.agent ?? "");
+    setPen(entry.payload.pen ?? "");
+    setHeads(String(entry.payload.head_count));
+    setPrice(entry.payload.price_per_head);
+    setWeight(entry.payload.weight_kg ?? "");
+    setDescription(entry.payload.description ?? "");
+    setIsEstimated(entry.payload.is_estimated);
+    void discardPendingObservation(entry.client_uuid);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function handleDiscardFailed(clientUuid: string) {
+    await discardPendingObservation(clientUuid);
+  }
+
   return (
     <div className="flex flex-col gap-4 p-4 pb-24">
       <p className="text-sm text-fg-tertiary">{strings.buyer.marketIntel.subtitle}</p>
@@ -170,15 +193,30 @@ function MarketIntelContent() {
           <>
             <p className="text-xs text-fg-tertiary">{strings.buyer.marketIntel.queuedHint}</p>
             {pending.map((p) => (
-              <div key={p.client_uuid} className="flex items-center justify-between rounded-md border border-subtle px-3 py-2 text-sm">
-                <span>
-                  {p.payload.species} · {p.payload.competitor_name} · {p.payload.agent ?? "—"} · {p.payload.pen ?? "—"} ·{" "}
-                  {p.payload.head_count}hd
-                </span>
-                <div className="flex items-center gap-3">
-                  <span data-numeric>${Number(p.payload.price_per_head).toFixed(2)}</span>
-                  <SyncStatusBadge status={p.sync_status} />
+              <div key={p.client_uuid} className="flex flex-col gap-1 rounded-md border border-subtle px-3 py-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span>
+                    {p.payload.species} · {p.payload.competitor_name} · {p.payload.agent ?? "—"} · {p.payload.pen ?? "—"} ·{" "}
+                    {p.payload.head_count}hd
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <span data-numeric>${Number(p.payload.price_per_head).toFixed(2)}</span>
+                    <SyncStatusBadge status={p.sync_status} />
+                  </div>
                 </div>
+                {p.sync_status === "failed" ? (
+                  <>
+                    {p.error_message ? <p className="text-xs text-fg-tertiary">{p.error_message}</p> : null}
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="secondary" onClick={() => handleEditFailed(p)}>
+                        {strings.buyer.marketIntel.needsAttention.edit}
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={() => void handleDiscardFailed(p.client_uuid)}>
+                        {strings.buyer.marketIntel.needsAttention.discard}
+                      </Button>
+                    </div>
+                  </>
+                ) : null}
               </div>
             ))}
           </>

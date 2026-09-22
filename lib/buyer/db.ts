@@ -24,7 +24,11 @@ const SPECIES_CACHE_KEY = "current";
 // Intel but never opened the DNBP tab.
 export type CachedSpecies = { id: typeof SPECIES_CACHE_KEY; options: SpeciesOption[]; fetched_at: string };
 
-export type SyncStatus = "queued" | "syncing" | "synced" | "conflict";
+// "failed" is terminal: the server rejected the item for a reason that
+// won't change on retry (see backend core/errors.py's AppError.retriable
+// docstring) — lib/buyer/sync.ts stops auto-retrying it and surfaces it
+// for the buyer to fix or discard, rather than silently retrying forever.
+export type SyncStatus = "queued" | "syncing" | "synced" | "failed";
 
 export type PendingEntry = {
   client_uuid: string;
@@ -105,6 +109,13 @@ export async function cacheHistoryEntry(entry: BuyEntryResponse): Promise<void> 
   await buyerDb.entry_history.put(entry);
 }
 
+// The buyer's explicit resolution for a "failed" (terminal) entry — it
+// will never sync as-is, so it stays queued forever unless the buyer
+// either fixes and resubmits it (a new queueEntry call) or discards it.
+export async function discardPendingEntry(clientUuid: string): Promise<void> {
+  await buyerDb.pending_entries.delete(clientUuid);
+}
+
 export async function recentHistory(limit = 50): Promise<HistoryEntry[]> {
   return buyerDb.entry_history.orderBy("client_created_at").reverse().limit(limit).toArray();
 }
@@ -116,6 +127,10 @@ export async function queueObservation(payload: MarketObservationCreatePayload):
     sync_status: "queued",
     created_at: new Date().toISOString(),
   });
+}
+
+export async function discardPendingObservation(clientUuid: string): Promise<void> {
+  await buyerDb.pending_observations.delete(clientUuid);
 }
 
 // Day-zero fallback for a device that has never reached /buyer/species —
