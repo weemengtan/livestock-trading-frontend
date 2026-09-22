@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { DateTime } from "@/components/ui/date-time";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -71,7 +72,7 @@ export function OrderLineRemovalsPanel() {
                   {removal.customer_name ?? "Unknown customer"}
                   {removal.amount_aud ? ` · ${money.format(Number(removal.amount_aud))}` : ""}
                 </p>
-                <p className="text-xs text-fg-tertiary">Last seen active until {new Date(removal.detected_at).toLocaleString()}</p>
+                <p className="text-xs text-fg-tertiary">Last seen active until {<DateTime value={removal.detected_at} />}</p>
               </div>
               {openReasonFor !== removal.id ? (
                 <Button size="sm" variant="secondary" onClick={() => setOpenReasonFor(removal.id)}>

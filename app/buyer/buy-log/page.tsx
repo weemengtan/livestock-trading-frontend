@@ -17,11 +17,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { toast } from "@/components/ui/toast";
 import { useAuthStore } from "@/lib/auth-store";
+import { melbourneDate } from "@/lib/business-time";
 import { strings } from "@/lib/strings";
 import { scoreBid, CLOSE_THRESHOLD_PCT } from "@/lib/buyer/bidcheck";
 import { buyerApi } from "@/lib/buyer-api";
 import { buyerDb, cacheHistoryEntry, type CachedDnbp } from "@/lib/buyer/db";
 import { useDnbpCurrent } from "@/lib/buyer/use-dnbp-current";
+import { useSaleyards } from "@/lib/buyer/use-saleyards";
 import { DnbpRequiredNotice } from "@/components/buyer/dnbp-required-notice";
 import { submitBuyEntry } from "@/lib/buyer/create-entry";
 import { flushPendingEntries } from "@/lib/buyer/sync";
@@ -57,7 +59,12 @@ function BuyLogContent() {
     const p = searchParams.get("price");
     return s && w && p ? { species: s, weight: w, price: p } : null;
   });
-  const [saleyard, setSaleyard] = React.useState("Bendigo");
+  // Null until the buyer types one — the field shows today's calendar
+  // saleyard (see lib/buyer/use-saleyards.ts) until then, derived at render
+  // time so a background calendar refresh can't overwrite what they typed.
+  const { options: saleyardOptions, defaultSaleyard } = useSaleyards(accessToken);
+  const [saleyardChoice, setSaleyardChoice] = React.useState<string | null>(null);
+  const saleyard = saleyardChoice ?? defaultSaleyard;
   const [speciesChoice, setSpeciesChoice] = React.useState(draft?.species ?? "");
   const species = speciesChoice || cached?.species[0]?.species || "";
   const [agent, setAgent] = React.useState("");
@@ -71,7 +78,7 @@ function BuyLogContent() {
   const [breachReason, setBreachReason] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = melbourneDate();
 
   const historyResult = useLiveQuery(() => buyerDb.entry_history.where("trade_date").equals(today).toArray(), [today]);
   const pendingResult = useLiveQuery(() => buyerDb.pending_entries.toArray(), []);
@@ -98,7 +105,7 @@ function BuyLogContent() {
       : null;
 
   async function handleSave() {
-    if (!result) return;
+    if (!result || !saleyard.trim()) return;
     if (result.isBreach && !breachReason) {
       toast({ title: strings.buyer.buyLog.breachReasonLabel, variant: "danger" });
       return;
@@ -123,7 +130,6 @@ function BuyLogContent() {
       await submitBuyEntry(
         {
           saleyard,
-          trade_date: today,
           species,
           agent: agent || null,
           pen: pen || null,
@@ -208,7 +214,17 @@ function BuyLogContent() {
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
           <Label htmlFor="saleyard">Saleyard</Label>
-          <Input id="saleyard" value={saleyard} onChange={(e) => setSaleyard(e.target.value)} />
+          <Input
+            id="saleyard"
+            list="saleyard-options"
+            value={saleyard}
+            onChange={(e) => setSaleyardChoice(e.target.value)}
+          />
+          <datalist id="saleyard-options">
+            {saleyardOptions.map((o) => (
+              <option key={o.saleyard} value={o.saleyard} />
+            ))}
+          </datalist>
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="log-species">{strings.buyer.buyLog.speciesLabel}</Label>
@@ -253,10 +269,13 @@ function BuyLogContent() {
 
       {result?.isBreach ? <BreachReasonChips value={breachReason} onChange={setBreachReason} /> : null}
 
-      <Button size="lg" onClick={handleSave} disabled={!result || saving}>
+      <Button size="lg" onClick={handleSave} disabled={!result || !saleyard.trim() || saving}>
         {saving ? strings.buyer.buyLog.saving : strings.buyer.buyLog.save}
       </Button>
       {!result ? <p className="-mt-2 text-center text-sm text-fg-tertiary">{strings.buyer.buyLog.saveHint}</p> : null}
+      {result && !saleyard.trim() ? (
+        <p className="-mt-2 text-center text-sm text-fg-tertiary">{strings.buyer.buyLog.saleyardRequiredHint}</p>
+      ) : null}
         </>
       ) : (
         <DnbpRequiredNotice status={status} />

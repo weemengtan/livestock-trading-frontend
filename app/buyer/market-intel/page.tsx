@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "@/components/ui/toast";
 import { useAuthStore } from "@/lib/auth-store";
 import { strings } from "@/lib/strings";
+import { useSaleyards } from "@/lib/buyer/use-saleyards";
 import { useSpecies } from "@/lib/buyer/use-species";
 import { submitObservation } from "@/lib/buyer/create-observation";
 import { flushPendingObservations } from "@/lib/buyer/sync-observations";
@@ -37,7 +38,10 @@ function MarketIntelContent() {
   // (see lib/buyer/use-species.ts).
   const speciesOptions = useSpecies(accessToken);
   const noSpecies = speciesOptions.length === 0;
-  const [saleyard, setSaleyard] = React.useState("Bendigo");
+  // Null until the buyer types one — see the same pattern in buy-log/page.tsx.
+  const { options: saleyardOptions, defaultSaleyard } = useSaleyards(accessToken);
+  const [saleyardChoice, setSaleyardChoice] = React.useState<string | null>(null);
+  const saleyard = saleyardChoice ?? defaultSaleyard;
   const [speciesChoice, setSpeciesChoice] = React.useState("");
   // Falls back to the first registry species until the buyer explicitly
   // picks one — derived at render time, not via an effect, so a background
@@ -54,7 +58,6 @@ function MarketIntelContent() {
   const [isEstimated, setIsEstimated] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
 
-  const today = new Date().toISOString().slice(0, 10);
   const pendingResult = useLiveQuery(() => buyerDb.pending_observations.toArray(), []);
   const pending = React.useMemo(() => (pendingResult ?? []).slice().reverse(), [pendingResult]);
 
@@ -63,14 +66,13 @@ function MarketIntelContent() {
   }, [accessToken]);
 
   async function handleSave() {
-    if (!species || !competitor || !price) return;
+    if (!species || !competitor || !price || !saleyard.trim()) return;
 
     setSaving(true);
     try {
       await submitObservation(
         {
           saleyard,
-          trade_date: today,
           species,
           competitor_name: competitor,
           agent: agent || null,
@@ -104,7 +106,17 @@ function MarketIntelContent() {
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
           <Label htmlFor="mi-saleyard">Saleyard</Label>
-          <Input id="mi-saleyard" value={saleyard} onChange={(e) => setSaleyard(e.target.value)} />
+          <Input
+            id="mi-saleyard"
+            list="mi-saleyard-options"
+            value={saleyard}
+            onChange={(e) => setSaleyardChoice(e.target.value)}
+          />
+          <datalist id="mi-saleyard-options">
+            {saleyardOptions.map((o) => (
+              <option key={o.saleyard} value={o.saleyard} />
+            ))}
+          </datalist>
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="mi-species">{strings.buyer.marketIntel.speciesLabel}</Label>
@@ -147,7 +159,7 @@ function MarketIntelContent() {
         {strings.buyer.marketIntel.estimatedLabel}
       </label>
 
-      <Button size="lg" onClick={handleSave} disabled={!species || !competitor || !price || saving}>
+      <Button size="lg" onClick={handleSave} disabled={!species || !competitor || !price || !saleyard.trim() || saving}>
         {saving ? strings.buyer.marketIntel.saving : strings.buyer.marketIntel.save}
       </Button>
 

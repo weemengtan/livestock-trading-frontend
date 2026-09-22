@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { DateTime } from "@/components/ui/date-time";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { AuthGuard } from "@/components/auth-guard";
@@ -222,7 +223,7 @@ function WorkbenchListContent() {
               >
                 <div>
                   <p className="text-sm font-medium text-fg-primary">{snapshot.source_filename}</p>
-                  <p className="text-xs text-fg-tertiary">{new Date(snapshot.created_at).toLocaleString()}</p>
+                  <p className="text-xs text-fg-tertiary">{<DateTime value={snapshot.created_at} />}</p>
                 </div>
                 <Badge variant={snapshot.status === "CALCULATED" ? "pass" : "neutral"}>{snapshot.status}</Badge>
               </Link>

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { DateTime } from "@/components/ui/date-time";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -223,7 +224,7 @@ export function HomeToday() {
         {publication ? (
           <div className="mt-2 flex flex-col gap-2">
             <p className="text-sm text-fg-secondary">
-              {strings.home.publicationState.live} {new Date(publication.published_at).toLocaleString()}
+              {strings.home.publicationState.live} {<DateTime value={publication.published_at} />}
             </p>
             <div className="flex flex-wrap gap-2">
               {publication.deliveries.map((d) => (

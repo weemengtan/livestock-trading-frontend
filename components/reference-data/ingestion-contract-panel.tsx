@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { DateTime } from "@/components/ui/date-time";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -342,7 +343,7 @@ export function IngestionContractPanel() {
             <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
               <span>
                 <span className="font-medium">{c.version}</span> — {c.required_sheet_name} —{" "}
-                {new Date(c.created_at).toLocaleString()}
+                {<DateTime value={c.created_at} />}
                 {c.note ? ` — ${c.note}` : ""}
               </span>
               {c.is_active ? (

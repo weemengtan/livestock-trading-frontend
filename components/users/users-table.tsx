@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { DateTime } from "@/components/ui/date-time";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -212,7 +213,7 @@ export function UsersTable() {
                   <Badge variant={statusVariant(user.invite_status)}>{user.invite_status}</Badge>
                 </td>
                 <td className="px-4 py-3 text-fg-secondary">
-                  {user.last_login_at ? new Date(user.last_login_at).toLocaleString() : strings.users.never}
+                  {user.last_login_at ? <DateTime value={user.last_login_at} /> : strings.users.never}
                 </td>
                 <td className="px-4 py-3 text-right">
                   {user.invite_status === "DEACTIVATED" ? (

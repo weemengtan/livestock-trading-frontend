@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { DateTime } from "@/components/ui/date-time";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useAuthStore } from "@/lib/auth-store";
@@ -73,7 +74,7 @@ export function DnbpProofPanel({
               <dt className="text-fg-secondary">Reference data version</dt>
               <dd className="text-fg-primary">{proof.ref_data_version}</dd>
               <dt className="text-fg-secondary">Computed at</dt>
-              <dd className="text-fg-primary">{new Date(proof.computed_at).toLocaleString()}</dd>
+              <dd className="text-fg-primary">{<DateTime value={proof.computed_at} />}</dd>
             </dl>
           </div>
         ) : null}

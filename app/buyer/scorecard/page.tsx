@@ -10,6 +10,7 @@ import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { BuyerBottomNav } from "@/components/buyer/bottom-nav";
 import { BarList } from "@/components/dataviz/bar-list";
 import { useAuthStore } from "@/lib/auth-store";
+import { addDays, melbourneDate } from "@/lib/business-time";
 import { strings } from "@/lib/strings";
 import { buyerApi, type ScorecardResponse } from "@/lib/buyer-api";
 
@@ -19,17 +20,11 @@ const pct = new Intl.NumberFormat("en-AU", { style: "percent", maximumFractionDi
 
 type RangeKey = "today" | "7" | "30";
 
-function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
 function rangeBounds(range: RangeKey): { from: string; to: string } {
-  const today = new Date();
-  const to = isoDate(today);
+  // Melbourne calendar dates (lib/business-time.ts), the same day `trade_date` is recorded against.
+  const to = melbourneDate();
   const days = range === "today" ? 0 : range === "7" ? 6 : 29;
-  const from = new Date(today);
-  from.setDate(from.getDate() - days);
-  return { from: isoDate(from), to };
+  return { from: addDays(to, -days), to };
 }
 
 export default function BuyerScorecardPage() {

@@ -430,6 +430,7 @@ export const strings = {
       save: "Save entry",
       saving: "Saving…",
       saveHint: "Enter price and weight to check this bid against the Do Not Buy Price and save it.",
+      saleyardRequiredHint: "Enter the saleyard to save this entry.",
       breachReasonLabel: "Reason for breach",
       breachReasons: ["Quality premium", "Volume fill", "Market short", "Other"],
       duplicateWarning: "Same agent, pen and price logged in the last 2 minutes — check this isn't a duplicate.",

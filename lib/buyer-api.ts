@@ -1,6 +1,6 @@
 import { apiFetch } from "./api-client";
 import { TicketSocket } from "./ws-client";
-import { dnbpCurrentSchema, speciesOptionsSchema } from "./buyer-schemas";
+import { dnbpCurrentSchema, saleyardOptionsSchema, speciesOptionsSchema } from "./buyer-schemas";
 
 export type WeightBand = { min: string; max: string };
 
@@ -21,6 +21,13 @@ export type DnbpCurrentResponse = {
   species: DnbpSpeciesLine[];
 };
 
+// Matches backend/schemas/buyer.py::SaleyardOption — one weekday -> saleyard
+// row of the saleyard calendar; `day` is upper-case English ("TUESDAY").
+export type SaleyardOption = {
+  saleyard: string;
+  day: string;
+};
+
 // Matches backend/schemas/buyer.py::SpeciesOption — the open species
 // registry, independent of any DNBP publication.
 export type SpeciesOption = {
@@ -28,10 +35,10 @@ export type SpeciesOption = {
   display_name: string;
 };
 
-// Matches backend/schemas/buyer.py::BuyEntryCreateRequest exactly.
+// Matches backend/schemas/buyer.py::BuyEntryCreateRequest exactly. No
+// trade_date: the server derives it from client_created_at (Melbourne date).
 export type BuyEntryCreatePayload = {
   saleyard: string;
-  trade_date: string; // YYYY-MM-DD
   species: string;
   agent?: string | null;
   pen?: string | null;
@@ -114,6 +121,9 @@ export const buyerApi = {
 
   getSpecies: async (accessToken: string | null): Promise<SpeciesOption[]> =>
     speciesOptionsSchema.parse(await apiFetch<unknown>("/buyer/species", auth(accessToken))),
+
+  getSaleyards: async (accessToken: string | null): Promise<SaleyardOption[]> =>
+    saleyardOptionsSchema.parse(await apiFetch<unknown>("/buyer/saleyards", auth(accessToken))),
 
   ackDnbp: (publicationId: string, accessToken: string | null) =>
     apiFetch<void>("/buyer/dnbp/ack", { method: "POST", body: { publication_id: publicationId }, ...auth(accessToken) }),

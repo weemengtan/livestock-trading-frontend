@@ -7,7 +7,6 @@ import { apiFetch } from "./api-client";
 // DNBP scoring applies to someone else's bid).
 export type MarketObservationCreatePayload = {
   saleyard: string;
-  trade_date: string; // YYYY-MM-DD
   species: string;
   competitor_name: string;
   agent?: string | null;

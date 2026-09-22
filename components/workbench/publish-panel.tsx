@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { DateTime } from "@/components/ui/date-time";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
+import { ApiError } from "@/lib/api-client";
 import { useAuthStore } from "@/lib/auth-store";
 import { strings } from "@/lib/strings";
 import { buyInstructionsApi } from "@/lib/buy-instructions-api";
@@ -267,17 +269,16 @@ export function PublishPanel({
     if (groups.length === 0) return;
     setAcknowledging(true);
     try {
-      await Promise.all(
-        groups.flatMap((group) =>
-          group.issues.map((issue) =>
-            publicationsApi.acknowledgeIssue(snapshotId, issue.id, accessToken),
-          ),
-        ),
-      );
-      onIssuesAcknowledged(groups.flatMap((group) => group.issues.map((issue) => issue.id)));
+      const issueIds = groups.flatMap((group) => group.issues.map((issue) => issue.id));
+      await publicationsApi.acknowledgeIssues(snapshotId, issueIds, accessToken);
+      onIssuesAcknowledged(issueIds);
       setSelectedLineIds(new Set());
-    } catch {
-      toast({ title: strings.publication.publish.couldNotAcknowledge, variant: "danger" });
+    } catch (err) {
+      toast({
+        title: strings.publication.publish.couldNotAcknowledge,
+        description: err instanceof ApiError ? err.message : undefined,
+        variant: "danger",
+      });
     } finally {
       setAcknowledging(false);
     }
@@ -371,9 +372,7 @@ export function PublishPanel({
                       {group.issues[0]?.acknowledged_at ? (
                         <p className="mt-1 text-xs text-fg-tertiary">
                           Reviewed{" "}
-                          {new Date(
-                            group.issues[0].acknowledged_at,
-                          ).toLocaleDateString()}
+                          <DateTime value={group.issues[0].acknowledged_at} dateOnly />
                         </p>
                       ) : null}
                     </div>
@@ -395,7 +394,7 @@ export function PublishPanel({
           {published ? (
             <p className="text-sm text-fg-tertiary">
               {strings.publication.publish.alreadyPublishedAt}{" "}
-              {new Date(published.published_at).toLocaleString()}
+              {<DateTime value={published.published_at} />}
             </p>
           ) : null}
           <p className="text-sm text-fg-tertiary">
@@ -608,9 +607,13 @@ export function PublishPanel({
                           : "neutral"
                     }
                   >
-                    {delivery.acknowledged_at
-                      ? `${strings.publication.publish.delivered} ✓ ${new Date(delivery.acknowledged_at).toLocaleTimeString()}`
-                      : strings.publication.publish.notYetSeen}
+                    {delivery.acknowledged_at ? (
+                      <>
+                        {strings.publication.publish.delivered} ✓ <DateTime value={delivery.acknowledged_at} />
+                      </>
+                    ) : (
+                      strings.publication.publish.notYetSeen
+                    )}
                   </Badge>
                 </div>
               ))

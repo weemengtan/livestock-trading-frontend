@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { DateTime } from "@/components/ui/date-time";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -550,7 +551,7 @@ export function DnbpModelPanel() {
           {versions.map((v) => (
             <div key={v.id} className="flex items-center justify-between text-sm">
               <span>
-                {new Date(v.created_at).toLocaleString()} {v.note ? `— ${v.note}` : ""}
+                {<DateTime value={v.created_at} />} {v.note ? `— ${v.note}` : ""}
               </span>
               {v.is_active ? <Badge variant="pass">{strings.referenceData.model.active}</Badge> : null}
             </div>

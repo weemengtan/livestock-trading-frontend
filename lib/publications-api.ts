@@ -78,6 +78,15 @@ export const publicationsApi = {
   acknowledgeIssue: (snapshotId: string, issueId: string, accessToken: string | null) =>
     apiFetch<unknown>(`/snapshots/${snapshotId}/issues/${issueId}/acknowledge`, { method: "POST", ...auth(accessToken) }),
 
+  // One request for the whole selection — a snapshot can carry hundreds of
+  // issues, and one call each would blow past the backend's general rate limit.
+  acknowledgeIssues: (snapshotId: string, issueIds: string[], accessToken: string | null) =>
+    apiFetch<unknown>(`/snapshots/${snapshotId}/issues/acknowledge`, {
+      method: "POST",
+      body: { issue_ids: issueIds },
+      ...auth(accessToken),
+    }),
+
   getWsTicket: (accessToken: string | null) => apiFetch<{ ticket: string }>("/ws/ticket", { method: "POST", ...auth(accessToken) }),
 };
 

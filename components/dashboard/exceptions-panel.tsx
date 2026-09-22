@@ -1,4 +1,5 @@
 import type * as React from "react";
+import { DateTime } from "@/components/ui/date-time";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { StatTile } from "@/components/ui/stat-tile";
@@ -66,7 +67,7 @@ export function ExceptionsPanel({ data, loading }: { data: ExceptionsResponse | 
             <ExceptionList title={s.stalePublications} empty={s.none}>
               {data.stale_publications.map((p) => (
                 <li key={p.publication_id} className="flex items-center justify-between py-1.5">
-                  <span className="text-fg-primary">{new Date(p.published_at).toLocaleString()}</span>
+                  <span className="text-fg-primary">{<DateTime value={p.published_at} />}</span>
                   <Badge variant="close">{Math.round(Number(p.hours_stale))}h stale</Badge>
                 </li>
               ))}

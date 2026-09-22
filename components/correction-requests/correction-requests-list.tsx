@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { DateTime } from "@/components/ui/date-time";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -70,7 +71,7 @@ export function CorrectionRequestsList() {
                   </div>
                   {request.detail ? <p className="text-fg-secondary">{request.detail}</p> : null}
                   <p className="text-xs text-fg-tertiary">
-                    Raised {new Date(request.raised_at).toLocaleString()}
+                    Raised {<DateTime value={request.raised_at} />}
                     {request.resolved_by_snapshot_id ? ` — ${strings.correctionRequests.autoResolved}` : ""}
                   </p>
                 </div>

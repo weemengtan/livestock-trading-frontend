@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { DnbpCurrentResponse, SpeciesOption } from "@/lib/buyer-api";
+import type { DnbpCurrentResponse, SaleyardOption, SpeciesOption } from "@/lib/buyer-api";
 
 // Runtime shape checks for data that crosses into the buyer PWA (API
 // responses, WebSocket frames) and for what gets read back from IndexedDB.
@@ -28,6 +28,10 @@ export const dnbpCurrentSchema = z.object({
 export const speciesOptionsSchema = z.array(
   z.object({ code: z.string(), display_name: z.string() })
 ) satisfies z.ZodType<SpeciesOption[]>;
+
+export const saleyardOptionsSchema = z.array(
+  z.object({ saleyard: z.string(), day: z.string() })
+) satisfies z.ZodType<SaleyardOption[]>;
 
 export const cachedDnbpSchema = dnbpCurrentSchema.extend({
   id: z.literal("current"),

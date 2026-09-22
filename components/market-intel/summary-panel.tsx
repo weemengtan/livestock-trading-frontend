@@ -1,10 +1,10 @@
 import { Card } from "@/components/ui/card";
+import { DateTime } from "@/components/ui/date-time";
 import { strings } from "@/lib/strings";
 import type { MarketIntelSummaryResponse } from "@/lib/market-intel-api";
 
 const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 2 });
 const number = new Intl.NumberFormat("en-AU");
-const dateFormat = new Intl.DateTimeFormat("en-AU", { dateStyle: "medium" });
 
 export function MarketIntelSummaryPanel({ data, loading }: { data: MarketIntelSummaryResponse | null; loading: boolean }) {
   const s = strings.marketIntel.summary;
@@ -41,7 +41,7 @@ export function MarketIntelSummaryPanel({ data, loading }: { data: MarketIntelSu
                   {row.avg_price_per_kg ? money.format(Number(row.avg_price_per_kg)) : "—"}
                 </td>
                 <td className="py-1.5 text-right tabular-nums text-fg-secondary">
-                  {dateFormat.format(new Date(row.last_observed_at))}
+                  <DateTime value={row.last_observed_at} dateOnly />
                 </td>
               </tr>
             ))}
