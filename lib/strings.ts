@@ -505,8 +505,13 @@ export const strings = {
     reconcileClose: "Close as reconciled",
     closing: "Closing…",
     lineItems: "Line items",
+    filters: {
+      species: "Species",
+      clear: "Clear filters",
+    },
     columns: {
       contract: "Order number",
+      species: "Species",
       schw: "SCHW",
       expectedHeads: "Expected heads",
       weightRequirement: "Weight requirement",

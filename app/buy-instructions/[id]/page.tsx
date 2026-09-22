@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
+import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api-client";
 import { useAuthStore } from "@/lib/auth-store";
@@ -50,6 +51,7 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
   const [loading, setLoading] = React.useState(true);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [fillDrafts, setFillDrafts] = React.useState<Record<string, { label: string; amount: string }>>({});
+  const [speciesFilter, setSpeciesFilter] = React.useState("");
   const [expandedGroup, setExpandedGroup] = React.useState<string | null>(null);
   const [entriesByGroup, setEntriesByGroup] = React.useState<Record<string, ReconciliationEntry[]>>({});
   const [entriesLoading, setEntriesLoading] = React.useState<string | null>(null);
@@ -172,6 +174,9 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
   }
 
   const canFill = instruction.status === "ISSUED" || instruction.status === "ACKNOWLEDGED";
+  const filteredLines = instruction.lines.filter((line) =>
+    line.species.toLowerCase().includes(speciesFilter.trim().toLowerCase())
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -213,6 +218,33 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
 
       <Card>
         <h2 className="text-lg font-semibold text-fg-primary">{strings.buyInstructions.lineItems}</h2>
+
+        <div className="mt-3 flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="bi-species-filter">{strings.buyInstructions.filters.species}</Label>
+              <Input id="bi-species-filter" value={speciesFilter} onChange={(e) => setSpeciesFilter(e.target.value)} />
+            </div>
+          </div>
+
+          {speciesFilter ? (
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setSpeciesFilter("")}
+                className="gap-1.5 text-fg-secondary"
+                aria-label={strings.buyInstructions.filters.clear}
+                title={strings.buyInstructions.filters.clear}
+              >
+                <ClearIcon />
+                {strings.buyInstructions.filters.clear}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+
         <div className="mt-3 overflow-x-auto">
           {/* eslint-disable-next-line local/no-raw-design-values -- 900px is the minimum width this
               specific wide table needs before its columns start clipping; not a design-token value,
@@ -222,6 +254,7 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
             <thead>
               <tr className="border-b border-subtle text-left text-fg-tertiary">
                 <th className="py-2 pr-3">{strings.buyInstructions.columns.contract}</th>
+                <th className="py-2 pr-3">{strings.buyInstructions.columns.species}</th>
                 <th className="py-2 pr-3 text-right">
                   <span className="inline-flex items-center gap-1">
                     {strings.buyInstructions.columns.schw}
@@ -260,9 +293,10 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
               </tr>
             </thead>
             <tbody>
-              {instruction.lines.map((line) => (
+              {filteredLines.map((line) => (
                 <tr key={line.id} className="border-b border-subtle align-top">
                   <td className="py-2 pr-3 font-medium">{line.contract_no ?? "—"}</td>
+                  <td className="py-2 pr-3">{line.species}</td>
                   <td className="py-2 pr-3 text-right" data-numeric>{money(line.schw_kg)}</td>
                   <td className="py-2 pr-3 text-right" data-numeric>{money(line.expected_heads)}</td>
                   <td className="py-2 pr-3 text-right" data-numeric>{money(line.weight_requirement_kg)}</td>
@@ -485,6 +519,14 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
         </Card>
       ) : null}
     </div>
+  );
+}
+
+function ClearIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden>
+      <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
   );
 }
 
