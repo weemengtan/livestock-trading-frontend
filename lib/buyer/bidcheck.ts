@@ -10,17 +10,13 @@ import Decimal from "decimal.js";
  * Money uses decimal.js (§5.5's "decimal.js... throughout"), never native
  * floating point, for the same reason the engine never uses Python float:
  * a buyer at the ring is reading this number to decide what to bid.
+ *
+ * §12.3's close threshold is Everhealth-config-editable (reference_data's
+ * BID_CHECK_CLOSE_THRESHOLD_PCT) and rides along on the cached DNBP-current
+ * response's `buyer_config` (lib/buyer/use-dnbp-current.ts) so Bid Check
+ * still works fully offline from a cold start, without a hardcoded copy
+ * here going stale against an office-side change.
  */
-
-// §12.3 — mirrors the seed config's bid_check_close_threshold_pct (5).
-// Not fetched from the API this phase: Bid Check must work fully offline
-// from a cold start, and this constant changes rarely enough that shipping
-// it as a client-side default (rather than adding a public config
-// endpoint just for one number) is a reasonable, named simplification.
-// Declared once, here, and imported by both the Bid Check and Buy Log
-// screens — they score against the same threshold and must never be able
-// to drift apart from a copy-pasted literal.
-export const CLOSE_THRESHOLD_PCT = 5;
 
 export type BidStatus = "PASS" | "CLOSE" | "BREACH";
 

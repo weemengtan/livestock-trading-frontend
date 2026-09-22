@@ -12,10 +12,6 @@ import { strings } from "@/lib/strings";
 import { type DnbpSpeciesLine } from "@/lib/buyer-api";
 import { useDnbpCurrent } from "@/lib/buyer/use-dnbp-current";
 
-// §3, §12.2 — a publication older than this is stale even if it's still
-// technically "current" (nothing newer has been published since).
-const STALE_INSTRUCTION_HOURS = 24;
-
 // §12.2's own mockup: "$9.38   ▲ +0.12  ← change vs previous publication".
 // Null whenever there's nothing to compare against (this org's first-ever
 // publish for the species) or the price didn't move — an unchanged price
@@ -46,7 +42,12 @@ function DnbpHomeContent() {
   }
 
   const publishedAt = new Date(cached.published_at);
-  const isStale = Date.now() - publishedAt.getTime() > STALE_INSTRUCTION_HOURS * 60 * 60 * 1000;
+  // §3, §12.2 — a publication older than this is stale even if it's still
+  // technically "current" (nothing newer has been published since).
+  // Everhealth-config-editable (reference_data's STALE_INSTRUCTION_HOURS),
+  // read from the cached DNBP-current response's buyer_config.
+  const isStale =
+    Date.now() - publishedAt.getTime() > Number(cached.buyer_config.stale_instruction_hours) * 60 * 60 * 1000;
   const fetchedAt = new Date(cached.fetched_at);
   const minutesAgo = Math.max(0, Math.round((Date.now() - fetchedAt.getTime()) / 60000));
 

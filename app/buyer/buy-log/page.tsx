@@ -19,7 +19,7 @@ import { toast } from "@/components/ui/toast";
 import { useAuthStore } from "@/lib/auth-store";
 import { melbourneDate } from "@/lib/business-time";
 import { strings } from "@/lib/strings";
-import { scoreBid, CLOSE_THRESHOLD_PCT } from "@/lib/buyer/bidcheck";
+import { scoreBid } from "@/lib/buyer/bidcheck";
 import { checkEntryBounds } from "@/lib/buyer/entry-bounds";
 import { buyerApi } from "@/lib/buyer-api";
 import { buyerDb, cacheHistoryEntry, discardPendingEntry, type CachedDnbp, type PendingEntry } from "@/lib/buyer/db";
@@ -107,19 +107,37 @@ function BuyLogContent() {
 
   const speciesLine = cached?.species.find((s) => s.species === species);
   const result =
-    speciesLine && price && weight
-      ? scoreBid({ pricePerHead: price, weightKg: weight, dnbpPerKg: speciesLine.dnbp_per_kg, closeThresholdPct: CLOSE_THRESHOLD_PCT })
+    speciesLine && price && weight && cached
+      ? scoreBid({
+          pricePerHead: price,
+          weightKg: weight,
+          dnbpPerKg: speciesLine.dnbp_per_kg,
+          closeThresholdPct: cached.buyer_config.bid_check_close_threshold_pct,
+        })
       : null;
 
   // weight_band is the buyer-facing ±15% tolerance band already published
   // per species; standard weight is its midpoint (min+max)/2 — same
-  // reference data checkEntryBounds' 0.2x-5x outer sanity net is built on.
+  // reference data checkEntryBounds' configured weight multiples outer
+  // sanity net is built on.
   const standardWeightKg = speciesLine?.weight_band
     ? new Decimal(speciesLine.weight_band.min).plus(speciesLine.weight_band.max).dividedBy(2)
     : null;
   const boundsViolations =
-    price && weight
-      ? checkEntryBounds({ headCount: heads || "0", pricePerHead: price, weightKg: weight, species, standardWeightKg })
+    price && weight && cached
+      ? checkEntryBounds({
+          headCount: heads || "0",
+          pricePerHead: price,
+          weightKg: weight,
+          species,
+          standardWeightKg,
+          maxHeadCount: cached.buyer_config.entry_bounds.max_head_count,
+          maxPricePerHead: cached.buyer_config.entry_bounds.max_price_per_head,
+          weightLowerMultiple: cached.buyer_config.entry_bounds.weight_lower_multiple,
+          weightUpperMultiple: cached.buyer_config.entry_bounds.weight_upper_multiple,
+          fallbackWeightMinKg: cached.buyer_config.entry_bounds.fallback_weight_min_kg,
+          fallbackWeightMaxKg: cached.buyer_config.entry_bounds.fallback_weight_max_kg,
+        })
       : [];
 
   async function handleSave() {
@@ -207,14 +225,16 @@ function BuyLogContent() {
     }
     for (const p of activePending) {
       if (!byUuid.has(p.client_uuid)) {
-        const scored = speciesForPayload(cached, p.payload)
-          ? scoreBid({
-              pricePerHead: p.payload.price_per_head,
-              weightKg: p.payload.weight_kg,
-              dnbpPerKg: speciesForPayload(cached, p.payload)!.dnbp_per_kg,
-              closeThresholdPct: CLOSE_THRESHOLD_PCT,
-            })
-          : null;
+        const line = speciesForPayload(cached, p.payload);
+        const scored =
+          line && cached
+            ? scoreBid({
+                pricePerHead: p.payload.price_per_head,
+                weightKg: p.payload.weight_kg,
+                dnbpPerKg: line.dnbp_per_kg,
+                closeThresholdPct: cached.buyer_config.bid_check_close_threshold_pct,
+              })
+            : null;
         byUuid.set(p.client_uuid, {
           client_uuid: p.client_uuid,
           species: p.payload.species,

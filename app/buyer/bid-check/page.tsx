@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { strings } from "@/lib/strings";
-import { scoreBid, CLOSE_THRESHOLD_PCT } from "@/lib/buyer/bidcheck";
+import { scoreBid } from "@/lib/buyer/bidcheck";
 import { DnbpRequiredNotice } from "@/components/buyer/dnbp-required-notice";
 import { useDnbpCurrent } from "@/lib/buyer/use-dnbp-current";
 
@@ -46,12 +46,12 @@ function BidCheckContent() {
   // known. A price of 0 is a safe stand-in until the buyer has one: it can't
   // flip isBreach/status, and those fields are only read once hasPrice is true.
   const result =
-    speciesLine && hasWeight
+    speciesLine && hasWeight && cached
       ? scoreBid({
           pricePerHead: pricePerHead || 0,
           weightKg,
           dnbpPerKg: speciesLine.dnbp_per_kg,
-          closeThresholdPct: CLOSE_THRESHOLD_PCT,
+          closeThresholdPct: cached.buyer_config.bid_check_close_threshold_pct,
         })
       : null;
 

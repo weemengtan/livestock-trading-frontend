@@ -22,6 +22,17 @@ export type ActiveConfig = {
   bid_check_close_threshold_pct: string;
   buyer_weight_band_tolerance_pct: string;
   stale_instruction_hours: number;
+  dnbp_outlier_threshold_pct: string;
+  dnbp_outlier_lookback_days: number;
+  analytics_trailing_days_for_rate: number;
+  delivery_escalation_minutes: number;
+  entry_bounds_max_head_count: number;
+  entry_bounds_max_price_per_head: string;
+  entry_bounds_weight_lower_multiple: string;
+  entry_bounds_weight_upper_multiple: string;
+  entry_bounds_fallback_weight_min_kg: string;
+  entry_bounds_fallback_weight_max_kg: string;
+  benchmark_compare_highlight_threshold_pct: string;
   saleyard_calendar: SaleyardCalendarRow[];
   owner: string;
 };
@@ -41,6 +52,15 @@ export type ReferenceDataVersion = {
 
 export type ReferenceDataVersionDetail = ReferenceDataVersion & {
   entries: { id: string; table_key: string; key1: string | null; value: string }[];
+};
+
+export type ReferenceDataAuditEntry = {
+  id: string;
+  action: string;
+  at: string;
+  actor_email: string | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
 };
 
 export type ImpactLine = {
@@ -88,7 +108,18 @@ export type NewEntry = {
     | "bid_check_close_threshold_pct"
     | "buyer_weight_band_tolerance_pct"
     | "stale_instruction_hours"
-    | "saleyard_calendar";
+    | "saleyard_calendar"
+    | "dnbp_outlier_threshold_pct"
+    | "dnbp_outlier_lookback_days"
+    | "analytics_trailing_days_for_rate"
+    | "delivery_escalation_minutes"
+    | "entry_bounds_max_head_count"
+    | "entry_bounds_max_price_per_head"
+    | "entry_bounds_weight_lower_multiple"
+    | "entry_bounds_weight_upper_multiple"
+    | "entry_bounds_fallback_weight_min_kg"
+    | "entry_bounds_fallback_weight_max_kg"
+    | "benchmark_compare_highlight_threshold_pct";
   key1: string | null;
   key2?: string | null;
   value: string;
@@ -101,6 +132,8 @@ export const referenceDataApi = {
     apiFetch<ReferenceDataVersion[]>("/reference-data/versions", auth(accessToken)),
   getVersion: (id: string, accessToken: string | null) =>
     apiFetch<ReferenceDataVersionDetail>(`/reference-data/versions/${id}`, auth(accessToken)),
+  getAudit: (id: string, accessToken: string | null) =>
+    apiFetch<ReferenceDataAuditEntry[]>(`/reference-data/versions/${id}/audit`, auth(accessToken)),
   createVersion: (
     body: { effective_from: string; note?: string; entries: NewEntry[]; removals?: KeyRef[] },
     accessToken: string | null

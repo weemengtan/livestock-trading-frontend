@@ -13,12 +13,32 @@ export type DnbpSpeciesLine = {
   weight_band: WeightBand | null;
 };
 
+export type EntryBounds = {
+  max_head_count: number;
+  max_price_per_head: string;
+  weight_lower_multiple: string;
+  weight_upper_multiple: string;
+  fallback_weight_min_kg: string;
+  fallback_weight_max_kg: string;
+};
+
+// The buyer-relevant subset of reference_data's operational constants
+// (backend/schemas/buyer.py::BuyerConfigResponse) — rides along on
+// DnbpCurrentResponse so it flows through the same cache-first offline
+// mechanism (lib/buyer/use-dnbp-current.ts) as the DNBP figures.
+export type BuyerConfig = {
+  bid_check_close_threshold_pct: string;
+  stale_instruction_hours: number;
+  entry_bounds: EntryBounds;
+};
+
 export type DnbpCurrentResponse = {
   publication_id: string;
   published_at: string;
   effective_from: string;
   engine_version: string;
   species: DnbpSpeciesLine[];
+  buyer_config: BuyerConfig;
 };
 
 // Matches backend/schemas/buyer.py::SaleyardOption — one weekday -> saleyard

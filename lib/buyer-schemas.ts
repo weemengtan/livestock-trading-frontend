@@ -23,6 +23,18 @@ export const dnbpCurrentSchema = z.object({
       weight_band: z.object({ min: z.string(), max: z.string() }).nullable(),
     })
   ),
+  buyer_config: z.object({
+    bid_check_close_threshold_pct: z.string(),
+    stale_instruction_hours: z.number(),
+    entry_bounds: z.object({
+      max_head_count: z.number(),
+      max_price_per_head: z.string(),
+      weight_lower_multiple: z.string(),
+      weight_upper_multiple: z.string(),
+      fallback_weight_min_kg: z.string(),
+      fallback_weight_max_kg: z.string(),
+    }),
+  }),
 }) satisfies z.ZodType<DnbpCurrentResponse>;
 
 export const speciesOptionsSchema = z.array(

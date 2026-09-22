@@ -34,6 +34,10 @@ export function BenchmarkCompareView() {
   const accessToken = useAuthStore((s) => s.accessToken);
   const [rows, setRows] = React.useState<Row[]>([]);
   const [everhealthFactors, setEverhealthFactors] = React.useState<Record<string, string>>({});
+  // Safe pre-load default only — the real value always arrives from
+  // referenceDataApi.getActive() in the same effect, before first paint of
+  // any row that uses it.
+  const [highlightThresholdPct, setHighlightThresholdPct] = React.useState(15);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -49,6 +53,7 @@ export function BenchmarkCompareView() {
           workbenchApi.listWorkings(latest.id, accessToken),
         ]);
         setEverhealthFactors(active.dnbp_factor_by_species);
+        setHighlightThresholdPct(Number(active.benchmark_compare_highlight_threshold_pct));
 
         const workingsByLineId = new Map(workingsRows.map((w) => [w.order_line_id, w] as const));
         setRows(lines.map((line) => ({ line, workings: workingsByLineId.get(line.id) ?? null })));
@@ -146,7 +151,7 @@ export function BenchmarkCompareView() {
                   <td
                     className={
                       "px-4 py-3 tabular-nums " +
-                      (ae && Math.abs(Number(ae)) / Number(row.workings?.bing_dnbp || 1) > 0.15
+                      (ae && Math.abs(Number(ae)) / Number(row.workings?.bing_dnbp || 1) > highlightThresholdPct / 100
                         ? "font-semibold text-status-breach-fg"
                         : "text-fg-secondary")
                     }

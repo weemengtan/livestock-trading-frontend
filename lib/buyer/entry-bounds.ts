@@ -13,22 +13,13 @@ import Decimal from "decimal.js";
  * They catch magnitude errors (extra zeros, wrong units), not business
  * judgement calls — bidcheck.ts's PASS/CLOSE/BREACH flow already covers
  * "legitimate but expensive" and is untouched by this module.
+ *
+ * All six bounds are Everhealth-config-editable (reference_data's
+ * ENTRY_BOUNDS_* keys, §6.7) — the buyer PWA reads them from the cached
+ * `buyer_config` on the DNBP-current response (lib/buyer/use-dnbp-current.ts)
+ * rather than hardcoding a copy here, so an office change to a bound takes
+ * effect on-device at the next successful sync.
  */
-
-export const MAX_HEAD_COUNT = 2000;
-export const MAX_PRICE_PER_HEAD = new Decimal(10000);
-
-// 0.2x-5x a species' standard_weight_by_species when known — generous
-// next to the ±15% buyer_weight_band_tolerance_pct already shown to
-// buyers on the DNBP home screen (that band stays informational-only;
-// this is a much wider outer net).
-const WEIGHT_LOWER_MULTIPLE = new Decimal("0.2");
-const WEIGHT_UPPER_MULTIPLE = new Decimal("5");
-
-// Fallback when no standard weight is known for the species client-side
-// (weight_band absent from the cached DNBP line).
-const FALLBACK_WEIGHT_MIN_KG = new Decimal(1);
-const FALLBACK_WEIGHT_MAX_KG = new Decimal(500);
 
 export function checkEntryBounds(params: {
   headCount: Decimal.Value;
@@ -36,29 +27,41 @@ export function checkEntryBounds(params: {
   weightKg: Decimal.Value;
   species: string;
   standardWeightKg: Decimal.Value | null;
+  maxHeadCount: Decimal.Value;
+  maxPricePerHead: Decimal.Value;
+  weightLowerMultiple: Decimal.Value;
+  weightUpperMultiple: Decimal.Value;
+  fallbackWeightMinKg: Decimal.Value;
+  fallbackWeightMaxKg: Decimal.Value;
 }): string[] {
   const violations: string[] = [];
   const headCount = new Decimal(params.headCount);
   const pricePerHead = new Decimal(params.pricePerHead);
   const weightKg = new Decimal(params.weightKg);
+  const maxHeadCount = new Decimal(params.maxHeadCount);
+  const maxPricePerHead = new Decimal(params.maxPricePerHead);
+  const weightLowerMultiple = new Decimal(params.weightLowerMultiple);
+  const weightUpperMultiple = new Decimal(params.weightUpperMultiple);
+  const fallbackWeightMinKg = new Decimal(params.fallbackWeightMinKg);
+  const fallbackWeightMaxKg = new Decimal(params.fallbackWeightMaxKg);
 
-  if (!(headCount.gte(1) && headCount.lte(MAX_HEAD_COUNT))) {
-    violations.push(`No. of Heads must be between 1 and ${MAX_HEAD_COUNT}.`);
+  if (!(headCount.gte(1) && headCount.lte(maxHeadCount))) {
+    violations.push(`No. of Heads must be between 1 and ${maxHeadCount.toFixed(0)}.`);
   }
 
-  if (!(pricePerHead.gt(0) && pricePerHead.lte(MAX_PRICE_PER_HEAD))) {
-    violations.push(`Price per head must be between $0 and $${MAX_PRICE_PER_HEAD.toFixed(0)}.`);
+  if (!(pricePerHead.gt(0) && pricePerHead.lte(maxPricePerHead))) {
+    violations.push(`Price per head must be between $0 and $${maxPricePerHead.toFixed(0)}.`);
   }
 
   let weightMin: Decimal;
   let weightMax: Decimal;
   const standardWeightKg = params.standardWeightKg !== null ? new Decimal(params.standardWeightKg) : null;
   if (standardWeightKg !== null && standardWeightKg.gt(0)) {
-    weightMin = standardWeightKg.times(WEIGHT_LOWER_MULTIPLE);
-    weightMax = standardWeightKg.times(WEIGHT_UPPER_MULTIPLE);
+    weightMin = standardWeightKg.times(weightLowerMultiple);
+    weightMax = standardWeightKg.times(weightUpperMultiple);
   } else {
-    weightMin = FALLBACK_WEIGHT_MIN_KG;
-    weightMax = FALLBACK_WEIGHT_MAX_KG;
+    weightMin = fallbackWeightMinKg;
+    weightMax = fallbackWeightMaxKg;
   }
 
   if (!(weightKg.gte(weightMin) && weightKg.lte(weightMax))) {
