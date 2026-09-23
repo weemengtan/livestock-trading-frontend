@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeToggle, type Theme } from "@/components/theme-toggle";
 import { cn } from "@/lib/cn";
 import { useAuthStore } from "@/lib/auth-store";
 import { strings } from "@/lib/strings";
@@ -59,6 +59,13 @@ export function AppShell({ title, children }: { title: string; children: React.R
   const router = useRouter();
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
+  // Yard defaults to the "Yard" theme everywhere under /buyer — a buyer's
+  // device is out in the sun at the saleyard, not an office desktop, and
+  // the route itself (not the async auth-hydration `user.role`) is what's
+  // known synchronously on first render, so this can't race a login.
+  // An explicit choice via the toggle below (persisted to localStorage)
+  // always overrides it, for this buyer's device from then on.
+  const defaultTheme: Theme | undefined = pathname?.startsWith("/buyer") ? "yard" : undefined;
 
   async function handleSignOut() {
     await logout();
@@ -92,7 +99,7 @@ export function AppShell({ title, children }: { title: string; children: React.R
                 <span aria-hidden="true">⚙</span>
               </Link>
             ) : null}
-            <ThemeToggle />
+            <ThemeToggle defaultTheme={defaultTheme} />
             {user ? <span className="hidden text-sm text-fg-secondary sm:inline">{user.email}</span> : null}
             <Button variant="secondary" size="sm" onClick={handleSignOut}>
               {strings.shell.signOut}

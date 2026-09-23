@@ -4,7 +4,7 @@ import * as React from "react";
 import { strings } from "@/lib/strings";
 import { cn } from "@/lib/cn";
 
-type Theme = "light" | "dark" | "yard";
+export type Theme = "light" | "dark" | "yard";
 const THEMES: Theme[] = ["light", "dark", "yard"];
 const STORAGE_KEY = "livestock-theme";
 
@@ -26,8 +26,11 @@ function readStoredTheme(): Theme | null {
   return null;
 }
 
-export function ThemeToggle() {
-  const [theme, setTheme] = React.useState<Theme | null>(readStoredTheme);
+export function ThemeToggle({ defaultTheme }: { defaultTheme?: Theme } = {}) {
+  // `defaultTheme` only fills in for a buyer who has never explicitly
+  // chosen one (readStoredTheme() returns null) — an explicit choice,
+  // stored below by `choose`, always wins over it.
+  const [theme, setTheme] = React.useState<Theme | null>(() => readStoredTheme() ?? defaultTheme ?? null);
 
   React.useEffect(() => {
     if (theme) document.documentElement.setAttribute("data-theme", theme);

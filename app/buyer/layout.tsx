@@ -6,6 +6,11 @@ import { ServiceWorkerRegistration } from "@/components/buyer/service-worker-reg
 export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "DNBP Buyer" },
+  // iOS Safari's "Add to Home Screen" icon fidelity across versions is
+  // inconsistent when relying on manifest.webmanifest alone (Android/
+  // Chrome reads that manifest correctly) — an explicit apple-touch-icon
+  // link is the reliable cross-iOS-version way to set the home-screen icon.
+  icons: { apple: "/icons/icon-192.png" },
 };
 
 export const viewport: Viewport = {

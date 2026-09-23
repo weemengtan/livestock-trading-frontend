@@ -6,10 +6,36 @@
   --font-mono: var(--font-geist-mono);
 }
 
+html {
+  /* Chrome/Android's default translucent tap-flash on every button/link
+     tap — Safari's own default is subtle enough not to need this, so this
+     rule is a no-op there. Real press feedback comes from each
+     component's own active:/focus-visible: states, not this native one. */
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   background: var(--color-bg-canvas);
   color: var(--color-fg-primary);
   font-family: var(--font-sans), system-ui, sans-serif;
+  /* Chrome/Android's default "pull down past the top → reload the page"
+     gesture, which would otherwise wipe an in-progress (unsaved) Buy Log
+     entry if a buyer overshoots a scroll. iOS Safari has no such gesture,
+     so this is a no-op there. */
+  overscroll-behavior-y: contain;
+}
+
+/* Chrome shows spinner arrows on every <input type="number">; WebKit
+   (Safari, iOS and macOS both) never has, so these rules only affect
+   Chrome/Android — nothing to hide on iPhone. Firefox needs its own
+   property for the same effect. */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 /* §15.3 — tabular numerals on every number in a table or comparison;
