@@ -600,6 +600,8 @@ export const strings = {
     addFill: "Add fill",
     fillLabel: "Label",
     fillAmount: "Amount (kg)",
+    fillOutsourcedLabel: "Outsourced",
+    fillOutsourcedBuyerPlaceholder: "Outsourced buyer (optional)",
     removeFill: "Remove",
     reconciliation: {
       title: "Reconciliation",
@@ -610,6 +612,7 @@ export const strings = {
       schw: "SCHW",
       heads: "Heads",
       actualCostColumn: "Actual Cost",
+      outsourcedColumn: "Outsourced",
       summary: "Summary",
       actualHeads: "Actual Heads",
       expectedHeads: "Expected Heads",
@@ -619,6 +622,8 @@ export const strings = {
       expectedCost: "Expected Cost (C)",
       actualCost: "Actual Cost (D)",
       costVariance: "Cost Variance (C − D)",
+      outsourcedHeads: "Outsourced Heads",
+      outsourcedCost: "Outsourced Cost",
       entries: {
         buyer: "Buyer",
         agent: "Agent",
@@ -630,6 +635,7 @@ export const strings = {
         loggedAt: "Logged at",
         loading: "Loading buy entries…",
         empty: "No buy entries in this group.",
+        outsourced: "Outsourced",
       },
     },
     reconciliationTooltips: {
@@ -656,6 +662,14 @@ export const strings = {
       costVariance: {
         what: "How much cheaper or more expensive this week's actual buying was compared with plan. Positive means we spent less than expected — a saving.",
         how: "Expected Cost (C) minus Actual Cost (D).",
+      },
+      outsourcedHeads: {
+        what: "Of Actual Heads, how many were bought on our behalf by a 3rd-party buyer at another saleyard rather than directly.",
+        how: "Sums head_count across every buy entry this week flagged Outsourced in the Buy Log.",
+      },
+      outsourcedCost: {
+        what: "Of Actual Cost (D), how much came from outsourced buys — the livestock cost base that a 3rd-party commission still needs to be added on top of for P&L.",
+        how: "Sums (price paid per head × head count) across every buy entry this week flagged Outsourced in the Buy Log.",
       },
     },
     export: { title: "Export", pdf: "PDF", xlsx: "XLSX", exporting: "Exporting…" },

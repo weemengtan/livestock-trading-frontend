@@ -6,6 +6,8 @@ export type BuyInstructionFill = {
   kg_amount: string;
   entered_by: string;
   entered_at: string;
+  is_outsourced: boolean;
+  outsourced_buyer_name: string | null;
 };
 
 export type BuyInstructionLine = {
@@ -46,6 +48,8 @@ export type SaleyardReconciliation = {
   schw_kg: string;
   heads: number;
   actual_cost: string;
+  outsourced_heads: number;
+  outsourced_cost: string;
 };
 
 export type ReconciliationSummary = {
@@ -57,6 +61,8 @@ export type ReconciliationSummary = {
   expected_cost: string;
   actual_cost: string;
   cost_variance: string;
+  outsourced_heads: number;
+  outsourced_cost: string;
 };
 
 export type Reconciliation = {
@@ -78,6 +84,8 @@ export type ReconciliationEntry = {
   implied_price_per_kg: string;
   is_breach: boolean;
   breach_reason: string | null;
+  is_outsourced: boolean;
+  outsourced_buyer_name: string | null;
   client_created_at: string;
 };
 
@@ -107,10 +115,22 @@ export const buyInstructionsApi = {
   reconcileClose: (id: string, accessToken: string | null) =>
     apiFetch<BuyInstruction>(`/buy-instructions/${id}/reconcile-close`, { method: "POST", ...auth(accessToken) }),
 
-  addFill: (instructionId: string, lineId: string, label: string, kgAmount: string, accessToken: string | null) =>
+  addFill: (
+    instructionId: string,
+    lineId: string,
+    label: string,
+    kgAmount: string,
+    accessToken: string | null,
+    options?: { isOutsourced?: boolean; outsourcedBuyerName?: string | null }
+  ) =>
     apiFetch<BuyInstruction>(`/buy-instructions/${instructionId}/lines/${lineId}/fills`, {
       method: "POST",
-      body: { label, kg_amount: kgAmount },
+      body: {
+        label,
+        kg_amount: kgAmount,
+        is_outsourced: options?.isOutsourced ?? false,
+        outsourced_buyer_name: options?.isOutsourced ? options?.outsourcedBuyerName || null : null,
+      },
       ...auth(accessToken),
     }),
 

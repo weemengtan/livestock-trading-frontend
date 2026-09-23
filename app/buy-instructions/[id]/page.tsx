@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Label } from "@/components/ui/label";
+import { Toggle } from "@/components/ui/toggle";
 import { toast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api-client";
 import { useAuthStore } from "@/lib/auth-store";
@@ -50,7 +51,9 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
   const [reconciliation, setReconciliation] = React.useState<Reconciliation | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [busy, setBusy] = React.useState<string | null>(null);
-  const [fillDrafts, setFillDrafts] = React.useState<Record<string, { label: string; amount: string }>>({});
+  const [fillDrafts, setFillDrafts] = React.useState<
+    Record<string, { label: string; amount: string; isOutsourced: boolean; outsourcedBuyerName: string }>
+  >({});
   const [speciesFilter, setSpeciesFilter] = React.useState("");
   const [expandedGroup, setExpandedGroup] = React.useState<string | null>(null);
   const [entriesByGroup, setEntriesByGroup] = React.useState<Record<string, ReconciliationEntry[]>>({});
@@ -135,13 +138,35 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
     });
   }
 
+  function updateFillDraft(
+    lineId: string,
+    patch: Partial<{ label: string; amount: string; isOutsourced: boolean; outsourcedBuyerName: string }>
+  ) {
+    setFillDrafts((prev) => ({
+      ...prev,
+      [lineId]: {
+        label: prev[lineId]?.label ?? "",
+        amount: prev[lineId]?.amount ?? "",
+        isOutsourced: prev[lineId]?.isOutsourced ?? false,
+        outsourcedBuyerName: prev[lineId]?.outsourcedBuyerName ?? "",
+        ...patch,
+      },
+    }));
+  }
+
   async function handleAddFill(line: BuyInstructionLine) {
     const draft = fillDrafts[line.id];
     if (!draft?.label || !draft?.amount) return;
     await withBusy(`fill-${line.id}`, async () => {
-      const updated = await buyInstructionsApi.addFill(id, line.id, draft.label, draft.amount, accessToken);
+      const updated = await buyInstructionsApi.addFill(id, line.id, draft.label, draft.amount, accessToken, {
+        isOutsourced: draft.isOutsourced,
+        outsourcedBuyerName: draft.outsourcedBuyerName.trim() || null,
+      });
       setInstruction(updated);
-      setFillDrafts((prev) => ({ ...prev, [line.id]: { label: "", amount: "" } }));
+      setFillDrafts((prev) => ({
+        ...prev,
+        [line.id]: { label: "", amount: "", isOutsourced: false, outsourcedBuyerName: "" },
+      }));
     });
   }
 
@@ -314,6 +339,11 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
                           <span className="text-fg-secondary">
                             {fill.label}: {money(fill.kg_amount)}kg
                           </span>
+                          {fill.is_outsourced ? (
+                            <Badge variant="accent" title={fill.outsourced_buyer_name ?? undefined}>
+                              {strings.buyer.buyLog.outsourcedBadge}
+                            </Badge>
+                          ) : null}
                           {canFill ? (
                             <button
                               type="button"
@@ -327,39 +357,47 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
                         </div>
                       ))}
                       {canFill ? (
-                        <div className="mt-1 flex items-center gap-1">
-                          <Input
-                            className="h-8 w-20 px-2 text-xs"
-                            placeholder={strings.buyInstructions.fillLabel}
-                            value={fillDrafts[line.id]?.label ?? ""}
-                            onChange={(e) =>
-                              setFillDrafts((prev) => ({
-                                ...prev,
-                                [line.id]: { label: e.target.value, amount: prev[line.id]?.amount ?? "" },
-                              }))
-                            }
-                          />
-                          <Input
-                            className="h-8 w-20 px-2 text-xs"
-                            placeholder={strings.buyInstructions.fillAmount}
-                            inputMode="decimal"
-                            value={fillDrafts[line.id]?.amount ?? ""}
-                            onChange={(e) =>
-                              setFillDrafts((prev) => ({
-                                ...prev,
-                                [line.id]: { label: prev[line.id]?.label ?? "", amount: e.target.value },
-                              }))
-                            }
-                          />
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            className="h-8 px-2 text-xs"
-                            onClick={() => void handleAddFill(line)}
-                            disabled={busy === `fill-${line.id}`}
-                          >
-                            {strings.buyInstructions.addFill}
-                          </Button>
+                        <div className="mt-1 flex flex-col gap-1">
+                          <div className="flex items-center gap-1">
+                            <Input
+                              className="h-8 w-20 px-2 text-xs"
+                              placeholder={strings.buyInstructions.fillLabel}
+                              value={fillDrafts[line.id]?.label ?? ""}
+                              onChange={(e) => updateFillDraft(line.id, { label: e.target.value })}
+                            />
+                            <Input
+                              className="h-8 w-20 px-2 text-xs"
+                              placeholder={strings.buyInstructions.fillAmount}
+                              inputMode="decimal"
+                              value={fillDrafts[line.id]?.amount ?? ""}
+                              onChange={(e) => updateFillDraft(line.id, { amount: e.target.value })}
+                            />
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="h-8 px-2 text-xs"
+                              onClick={() => void handleAddFill(line)}
+                              disabled={busy === `fill-${line.id}`}
+                            >
+                              {strings.buyInstructions.addFill}
+                            </Button>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Toggle
+                              checked={fillDrafts[line.id]?.isOutsourced ?? false}
+                              onChange={(checked) => updateFillDraft(line.id, { isOutsourced: checked })}
+                              aria-label={strings.buyInstructions.fillOutsourcedLabel}
+                            />
+                            <span className="text-xs text-fg-tertiary">{strings.buyInstructions.fillOutsourcedLabel}</span>
+                            {fillDrafts[line.id]?.isOutsourced ? (
+                              <Input
+                                className="h-8 w-32 px-2 text-xs"
+                                placeholder={strings.buyInstructions.fillOutsourcedBuyerPlaceholder}
+                                value={fillDrafts[line.id]?.outsourcedBuyerName ?? ""}
+                                onChange={(e) => updateFillDraft(line.id, { outsourcedBuyerName: e.target.value })}
+                              />
+                            ) : null}
+                          </div>
                         </div>
                       ) : null}
                     </div>
@@ -389,13 +427,14 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
                 <th className="py-2 pr-3">{strings.buyInstructions.reconciliation.species}</th>
                 <th className="py-2 pr-3 text-right">{strings.buyInstructions.reconciliation.schw}</th>
                 <th className="py-2 pr-3 text-right">{strings.buyInstructions.reconciliation.heads}</th>
-                <th className="py-2 text-right">{strings.buyInstructions.reconciliation.actualCostColumn}</th>
+                <th className="py-2 pr-3 text-right">{strings.buyInstructions.reconciliation.actualCostColumn}</th>
+                <th className="py-2 text-right">{strings.buyInstructions.reconciliation.outsourcedColumn}</th>
               </tr>
             </thead>
             <tbody>
               {reconciliation.by_saleyard.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-3 text-fg-tertiary">
+                  <td colSpan={6} className="py-3 text-fg-tertiary">
                     No buys recorded in this trading week yet.
                   </td>
                 </tr>
@@ -423,11 +462,20 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
                         <td className="py-2 pr-3">{row.species}</td>
                         <td className="py-2 pr-3 text-right" data-numeric>{money(row.schw_kg)}</td>
                         <td className="py-2 pr-3 text-right" data-numeric>{row.heads}</td>
-                        <td className="py-2 text-right" data-numeric>{money(row.actual_cost)}</td>
+                        <td className="py-2 pr-3 text-right" data-numeric>{money(row.actual_cost)}</td>
+                        <td className="py-2 text-right">
+                          {row.outsourced_heads > 0 ? (
+                            <Badge variant="accent" title={`${money(row.outsourced_cost)} outsourced cost`}>
+                              {row.outsourced_heads}hd
+                            </Badge>
+                          ) : (
+                            <span className="text-fg-tertiary">—</span>
+                          )}
+                        </td>
                       </tr>
                       {isOpen ? (
                         <tr className="border-b border-subtle bg-sunken">
-                          <td colSpan={5} className="px-3 py-2">
+                          <td colSpan={6} className="px-3 py-2">
                             {entriesLoading === key ? (
                               <p className="py-2 text-sm text-fg-tertiary">{strings.buyInstructions.reconciliation.entries.loading}</p>
                             ) : !entries || entries.length === 0 ? (
@@ -443,6 +491,7 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
                                     <th className="py-1 pr-3 text-right">{strings.buyInstructions.reconciliation.entries.price}</th>
                                     <th className="py-1 pr-3 text-right">{strings.buyInstructions.reconciliation.entries.weight}</th>
                                     <th className="py-1 pr-3 text-right">{strings.buyInstructions.reconciliation.entries.impliedPrice}</th>
+                                    <th className="py-1 pr-3">{strings.buyInstructions.reconciliation.entries.outsourced}</th>
                                     <th className="py-1 text-right">{strings.buyInstructions.reconciliation.entries.loggedAt}</th>
                                   </tr>
                                 </thead>
@@ -463,6 +512,15 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
                                           />
                                           ${money(e.implied_price_per_kg)}
                                         </span>
+                                      </td>
+                                      <td className="py-1 pr-3">
+                                        {e.is_outsourced ? (
+                                          <Badge variant="accent" title={e.outsourced_buyer_name ?? undefined}>
+                                            {strings.buyer.buyLog.outsourcedBadge}
+                                          </Badge>
+                                        ) : (
+                                          <span className="text-fg-tertiary">—</span>
+                                        )}
                                       </td>
                                       <td className="py-1 text-right" data-numeric>
                                         {new Date(e.client_created_at).toLocaleString()}
@@ -514,6 +572,16 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
               label={strings.buyInstructions.reconciliation.costVariance}
               value={money(reconciliation.summary.cost_variance)}
               tooltip={strings.buyInstructions.reconciliationTooltips.costVariance}
+            />
+            <SummaryRow
+              label={strings.buyInstructions.reconciliation.outsourcedHeads}
+              value={String(reconciliation.summary.outsourced_heads)}
+              tooltip={strings.buyInstructions.reconciliationTooltips.outsourcedHeads}
+            />
+            <SummaryRow
+              label={strings.buyInstructions.reconciliation.outsourcedCost}
+              value={money(reconciliation.summary.outsourced_cost)}
+              tooltip={strings.buyInstructions.reconciliationTooltips.outsourcedCost}
             />
           </div>
         </Card>
