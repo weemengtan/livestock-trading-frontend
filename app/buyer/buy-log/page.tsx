@@ -10,9 +10,11 @@ import { BuyerBottomNav } from "@/components/buyer/bottom-nav";
 import { BreachReasonChips } from "@/components/buyer/breach-reason-chips";
 import { StatusBadge } from "@/components/buyer/status-badge";
 import { SyncStatusBadge } from "@/components/buyer/sync-status-badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Toggle } from "@/components/ui/toggle";
 import { EmptyState } from "@/components/ui/empty-state";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { toast } from "@/components/ui/toast";
@@ -77,6 +79,8 @@ function BuyLogContent() {
   const [freight, setFreight] = React.useState("");
   const [cost, setCost] = React.useState("");
   const [breachReason, setBreachReason] = React.useState<string | null>(null);
+  const [isOutsourced, setIsOutsourced] = React.useState(false);
+  const [outsourcedBuyerName, setOutsourcedBuyerName] = React.useState("");
   const [saving, setSaving] = React.useState(false);
 
   const today = melbourneDate();
@@ -176,6 +180,8 @@ function BuyLogContent() {
           freight_per_head: freight || null,
           other_cost_per_kg: cost || null,
           breach_reason: result.isBreach ? breachReason : null,
+          is_outsourced: isOutsourced,
+          outsourced_buyer_name: isOutsourced ? outsourcedBuyerName.trim() || null : null,
         },
         accessToken
       );
@@ -188,6 +194,8 @@ function BuyLogContent() {
       setFreight("");
       setCost("");
       setBreachReason(null);
+      setIsOutsourced(false);
+      setOutsourcedBuyerName("");
       toast({ title: "Entry saved" });
     } finally {
       setSaving(false);
@@ -209,6 +217,8 @@ function BuyLogContent() {
     setDescription(entry.payload.description ?? "");
     setFreight(entry.payload.freight_per_head ?? "");
     setCost(entry.payload.other_cost_per_kg ?? "");
+    setIsOutsourced(entry.payload.is_outsourced ?? false);
+    setOutsourcedBuyerName(entry.payload.outsourced_buyer_name ?? "");
     void discardPendingEntry(entry.client_uuid);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -219,7 +229,23 @@ function BuyLogContent() {
 
   const rows = React.useMemo(() => {
     const history = historyResult ?? [];
-    const byUuid = new Map<string, { client_uuid: string; species: string; agent: string | null; pen: string | null; head_count: number; price_per_head: string; weight_kg: string; implied_price_per_kg: string; is_breach: boolean; synced: boolean }>();
+    const byUuid = new Map<
+      string,
+      {
+        client_uuid: string;
+        species: string;
+        agent: string | null;
+        pen: string | null;
+        head_count: number;
+        price_per_head: string;
+        weight_kg: string;
+        implied_price_per_kg: string;
+        is_breach: boolean;
+        is_outsourced: boolean;
+        outsourced_buyer_name: string | null;
+        synced: boolean;
+      }
+    >();
     for (const h of history) {
       byUuid.set(h.client_uuid, { ...h, synced: true });
     }
@@ -245,6 +271,8 @@ function BuyLogContent() {
           weight_kg: p.payload.weight_kg,
           implied_price_per_kg: scored ? scored.impliedPricePerKg.toFixed(4) : "0",
           is_breach: scored?.isBreach ?? false,
+          is_outsourced: p.payload.is_outsourced ?? false,
+          outsourced_buyer_name: p.payload.outsourced_buyer_name ?? null,
           synced: false,
         });
       }
@@ -257,15 +285,17 @@ function BuyLogContent() {
     let totalKg = new Decimal(0);
     let totalSpend = new Decimal(0);
     let breaches = 0;
+    let outsourced = 0;
     for (const row of rows) {
       totalHeads += row.head_count;
       const kg = new Decimal(row.weight_kg).times(row.head_count);
       totalKg = totalKg.plus(kg);
       totalSpend = totalSpend.plus(new Decimal(row.price_per_head).times(row.head_count));
       if (row.is_breach) breaches += 1;
+      if (row.is_outsourced) outsourced += 1;
     }
     const avg = totalKg.greaterThan(0) ? totalSpend.dividedBy(totalKg) : new Decimal(0);
-    return { totalHeads, totalKg, totalSpend, avg, breaches };
+    return { totalHeads, totalKg, totalSpend, avg, breaches, outsourced };
   }, [rows]);
 
   return (
@@ -303,6 +333,22 @@ function BuyLogContent() {
           </select>
         </div>
       </div>
+
+      <div className="flex items-center justify-between gap-3 rounded-md border border-subtle bg-sunken px-4 py-3">
+        <div className="flex flex-col gap-0.5">
+          <Label htmlFor="outsourced-toggle">{strings.buyer.buyLog.outsourcedLabel}</Label>
+          <span className="text-xs text-fg-tertiary">{strings.buyer.buyLog.outsourcedHint}</span>
+        </div>
+        <Toggle id="outsourced-toggle" checked={isOutsourced} onChange={setIsOutsourced} aria-label={strings.buyer.buyLog.outsourcedLabel} />
+      </div>
+      {isOutsourced ? (
+        <Field
+          label={strings.buyer.buyLog.outsourcedBuyerLabel}
+          value={outsourcedBuyerName}
+          onChange={setOutsourcedBuyerName}
+          placeholder={strings.buyer.buyLog.outsourcedBuyerPlaceholder}
+        />
+      ) : null}
 
       <div className="grid grid-cols-3 gap-3">
         <Field label={strings.buyer.buyLog.agentLabel} value={agent} onChange={setAgent} />
@@ -382,12 +428,13 @@ function BuyLogContent() {
           how={strings.buyer.buyLog.tooltips.totals.how}
         />
       </div>
-      <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-6">
         <Total label={strings.buyer.buyLog.totals.heads} value={String(totals.totalHeads)} />
         <Total label={strings.buyer.buyLog.totals.kg} value={totals.totalKg.toFixed(1)} />
         <Total label={strings.buyer.buyLog.totals.spend} value={`$${totals.totalSpend.toFixed(2)}`} />
         <Total label={strings.buyer.buyLog.totals.avg} value={`$${totals.avg.toFixed(2)}`} />
         <Total label={strings.buyer.buyLog.totals.breaches} value={String(totals.breaches)} />
+        <Total label={strings.buyer.buyLog.totals.outsourced} value={String(totals.outsourced)} />
       </div>
 
       <div className="flex flex-col gap-2">
@@ -399,6 +446,11 @@ function BuyLogContent() {
               <div className="flex items-center gap-2">
                 <span className={row.is_breach ? "h-2 w-2 rounded-full bg-status-breach-border" : "h-2 w-2 rounded-full bg-status-pass-border"} aria-hidden />
                 <span>{row.species} · {row.agent ?? "—"} · {row.pen ?? "—"} · {row.head_count}hd</span>
+                {row.is_outsourced ? (
+                  <Badge variant="accent" title={row.outsourced_buyer_name ?? undefined}>
+                    {strings.buyer.buyLog.outsourcedBadge}
+                  </Badge>
+                ) : null}
               </div>
               <div className="flex items-center gap-3">
                 <span data-numeric>${Number(row.implied_price_per_kg).toFixed(2)}/kg</span>
@@ -421,11 +473,13 @@ function Field({
   value,
   onChange,
   numeric,
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   numeric?: boolean;
+  placeholder?: string;
 }) {
   const id = React.useId();
   return (
@@ -438,6 +492,7 @@ function Field({
         className="h-12"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
       />
     </div>
   );

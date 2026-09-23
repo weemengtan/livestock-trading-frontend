@@ -70,6 +70,8 @@ export type BuyEntryCreatePayload = {
   freight_per_head?: string | null;
   other_cost_per_kg?: string | null;
   breach_reason?: string | null;
+  is_outsourced?: boolean;
+  outsourced_buyer_name?: string | null;
   client_uuid: string;
   client_created_at: string; // ISO 8601
 };
@@ -93,6 +95,8 @@ export type BuyEntryResponse = {
   variance_per_kg: string;
   is_breach: boolean;
   breach_reason: string | null;
+  is_outsourced: boolean;
+  outsourced_buyer_name: string | null;
   client_uuid: string;
   client_created_at: string;
   synced_at: string | null;
