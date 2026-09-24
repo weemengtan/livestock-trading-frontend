@@ -16,6 +16,7 @@ import {
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StatTile } from "@/components/ui/stat-tile";
 import { toast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api-client";
 import { useAuthStore } from "@/lib/auth-store";
@@ -28,15 +29,6 @@ import { strings } from "@/lib/strings";
 import { withErrorToast } from "@/lib/with-error-toast";
 
 const t = strings.referenceData.contract;
-
-function LabelWithTooltip({ text, tip }: { text: string; tip: { what: string; how: string } }) {
-  return (
-    <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-fg-tertiary">
-      {text}
-      <InfoTooltip label={`About ${text}`} what={tip.what} how={tip.how} />
-    </p>
-  );
-}
 
 function words(text: string): string[] {
   return text
@@ -218,46 +210,65 @@ function ProposeForm({
   );
 }
 
-function Summary({ contract, fields }: { contract: IngestionContractRecord; fields: string[] }) {
+function ParserConfiguration({ contract }: { contract: IngestionContractRecord }) {
+  return (
+    <Card>
+      <p className="text-sm font-semibold text-fg-primary">Parser configuration</p>
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <StatTile label={t.sheetName} value={contract.required_sheet_name} tooltip={{ label: `About ${t.sheetName}`, ...t.tooltips.sheetName }} />
+        <StatTile
+          label={t.activeMarker}
+          value={contract.active_title_tokens.join(" ")}
+          tooltip={{ label: `About ${t.activeMarker}`, ...t.tooltips.activeMarker }}
+        />
+        <StatTile
+          label={t.endMarker}
+          value={contract.section_end_tokens.join(" ")}
+          tooltip={{ label: `About ${t.endMarker}`, ...t.tooltips.endMarker }}
+        />
+        <StatTile
+          label={t.headerScanRows}
+          value={String(contract.header_scan_rows)}
+          tooltip={{ label: `About ${t.headerScanRows}`, ...t.tooltips.headerScanRows }}
+        />
+        <StatTile
+          label={t.minMatches}
+          value={String(contract.min_header_matches)}
+          tooltip={{ label: `About ${t.minMatches}`, ...t.tooltips.minMatches }}
+        />
+      </div>
+    </Card>
+  );
+}
+
+function FieldsTable({ contract, fields }: { contract: IngestionContractRecord; fields: string[] }) {
   // Parser field order (logical column order), not the JSON key order the database returns.
   const orderedFields = fields.filter((f) => f in contract.header_synonyms);
   return (
-    <div className="mt-4 flex flex-col gap-3 text-sm">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div>
-          <LabelWithTooltip text={t.sheetName} tip={t.tooltips.sheetName} />
-          <p className="font-semibold">{contract.required_sheet_name}</p>
-        </div>
-        <div>
-          <LabelWithTooltip text={t.activeMarker} tip={t.tooltips.activeMarker} />
-          <p>{contract.active_title_tokens.join(" ")}</p>
-        </div>
-        <div>
-          <LabelWithTooltip text={t.endMarker} tip={t.tooltips.endMarker} />
-          <p>{contract.section_end_tokens.join(" ")}</p>
-        </div>
-        <div>
-          <LabelWithTooltip text={t.headerScanRows} tip={t.tooltips.headerScanRows} />
-          <p className="tabular-nums">{contract.header_scan_rows}</p>
-        </div>
-        <div>
-          <LabelWithTooltip text={t.minMatches} tip={t.tooltips.minMatches} />
-          <p className="tabular-nums">{contract.min_header_matches}</p>
-        </div>
-      </div>
-      <div>
-        <LabelWithTooltip text={t.fieldsTitle} tip={t.tooltips.columns} />
-        <div className="mt-1 flex flex-col gap-1">
-          {orderedFields.map((field) => (
-            <div key={field} className="flex flex-wrap items-baseline gap-x-3">
-              <span className="font-medium">{field}</span>
-              {field in contract.required_columns ? <Badge variant="accent">{t.required}</Badge> : null}
-              <span className="text-fg-secondary">{contract.header_synonyms[field].join(" · ")}</span>
-            </div>
+    <Card>
+      <p className="flex items-center gap-1 text-sm font-semibold text-fg-primary">
+        {t.fieldsTitle}
+        <InfoTooltip label={`About ${t.fieldsTitle}`} what={t.tooltips.columns.what} how={t.tooltips.columns.how} />
+      </p>
+      <table className="mt-3 w-full text-sm">
+        <thead>
+          <tr className="border-b border-subtle text-left text-xs uppercase tracking-wide text-fg-tertiary">
+            <th className="py-2 pr-3 font-medium">Field</th>
+            <th className="py-2 pr-3 font-medium">{t.required}</th>
+            <th className="py-2 pr-3 font-medium">{t.headers}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {orderedFields.map((field, i) => (
+            <tr key={field} className={i % 2 === 1 ? "bg-sunken" : undefined}>
+              <td className="py-2 pr-3 font-medium">{field}</td>
+              <td className="py-2 pr-3">{field in contract.required_columns ? <Badge variant="accent">{t.required}</Badge> : null}</td>
+              <td className="py-2 pr-3 text-fg-secondary">{contract.header_synonyms[field].join(" · ")}</td>
+            </tr>
           ))}
-        </div>
-      </div>
-    </div>
+        </tbody>
+      </table>
+    </Card>
   );
 }
 
@@ -307,27 +318,27 @@ export function IngestionContractPanel() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-fg-primary">
-              {t.title} <Badge variant="pass">{active.version}</Badge>
-            </p>
-            <p className="text-sm text-fg-secondary">{t.subtitle}</p>
-            {!isOwner ? <p className="mt-1 text-xs text-fg-tertiary">{t.ownerOnly}</p> : null}
-          </div>
-          {isOwner ? (
-            <ProposeForm
-              key={active.id}
-              base={active}
-              fields={fields}
-              nextVersion={`v${contracts.length + 1}`}
-              onCreated={() => void load()}
-            />
-          ) : null}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-fg-primary">
+            {t.title} <Badge variant="pass">{active.version}</Badge>
+          </p>
+          <p className="text-sm text-fg-secondary">{t.subtitle}</p>
+          {!isOwner ? <p className="mt-1 text-xs text-fg-tertiary">{t.ownerOnly}</p> : null}
         </div>
-        <Summary contract={active} fields={fields} />
-      </Card>
+        {isOwner ? (
+          <ProposeForm
+            key={active.id}
+            base={active}
+            fields={fields}
+            nextVersion={`v${contracts.length + 1}`}
+            onCreated={() => void load()}
+          />
+        ) : null}
+      </div>
+
+      <ParserConfiguration contract={active} />
+      <FieldsTable contract={active} fields={fields} />
 
       <Card>
         <p className="flex items-center gap-1.5 text-sm font-semibold text-fg-primary">
@@ -338,26 +349,40 @@ export function IngestionContractPanel() {
             how={t.tooltips.versions.how}
           />
         </p>
-        <div className="mt-2 flex flex-col gap-2">
-          {contracts.map((c) => (
-            <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              <span>
-                <span className="font-medium">{c.version}</span> — {c.required_sheet_name} —{" "}
-                {<DateTime value={c.created_at} />}
-                {c.note ? ` — ${c.note}` : ""}
-              </span>
-              {c.is_active ? (
-                <Badge variant="pass">{t.activeBadge}</Badge>
-              ) : isOwner ? (
-                <Button size="sm" variant="secondary" disabled={activatingId === c.id} onClick={() => void handleActivate(c.id)}>
-                  {activatingId === c.id ? t.activating : t.activate}
-                </Button>
-              ) : (
-                <Badge variant="neutral">{t.draftBadge}</Badge>
-              )}
-            </div>
-          ))}
-        </div>
+        <table className="mt-3 w-full text-sm">
+          <thead>
+            <tr className="border-b border-subtle text-left text-xs uppercase tracking-wide text-fg-tertiary">
+              <th className="py-2 pr-3 font-medium">Version</th>
+              <th className="py-2 pr-3 font-medium">Sheet</th>
+              <th className="py-2 pr-3 font-medium">Created</th>
+              <th className="py-2 pr-3 font-medium">Note</th>
+              <th className="py-2 pr-3 font-medium"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {contracts.map((c, i) => (
+              <tr key={c.id} className={i % 2 === 1 ? "bg-sunken" : undefined}>
+                <td className="py-2 pr-3 font-medium">{c.version}</td>
+                <td className="py-2 pr-3 text-fg-secondary">{c.required_sheet_name}</td>
+                <td className="py-2 pr-3 text-fg-tertiary">
+                  <DateTime value={c.created_at} />
+                </td>
+                <td className="py-2 pr-3 text-fg-tertiary">{c.note ?? "—"}</td>
+                <td className="py-2 pr-3">
+                  {c.is_active ? (
+                    <Badge variant="pass">{t.activeBadge}</Badge>
+                  ) : isOwner ? (
+                    <Button size="sm" variant="secondary" disabled={activatingId === c.id} onClick={() => void handleActivate(c.id)}>
+                      {activatingId === c.id ? t.activating : t.activate}
+                    </Button>
+                  ) : (
+                    <Badge variant="neutral">{t.draftBadge}</Badge>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </Card>
     </div>
   );

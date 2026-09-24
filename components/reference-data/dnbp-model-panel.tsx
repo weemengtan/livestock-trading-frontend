@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Label } from "@/components/ui/label";
+import { StatTile } from "@/components/ui/stat-tile";
 import { toast } from "@/components/ui/toast";
 import { useAuthStore } from "@/lib/auth-store";
 import { ApiError } from "@/lib/api-client";
@@ -710,246 +711,203 @@ export function DnbpModelPanel() {
 
   if (loading || !active) return <p className="text-sm text-fg-tertiary">Loading…</p>;
 
+  const activeVersion = versions.find((v) => v.is_active);
+
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-fg-primary">{strings.referenceData.model.title}</p>
+          <p className="text-sm text-fg-secondary">{strings.referenceData.model.subtitle}</p>
+        </div>
+        <EditForm active={active} species={species} onDrafted={setDraft} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <StatTile label={strings.referenceData.model.cifBuffer} value={Number(active.cif_buffer_per_kg).toFixed(2)} />
+        <StatTile label="Ref data version" value={active.ref_data_version} hint={activeVersion ? `since ${new Date(activeVersion.activated_at ?? activeVersion.created_at).toLocaleDateString("en-AU")}` : undefined} />
+        <StatTile
+          label={strings.referenceData.model.modelType}
+          value={active.model_type}
+          tooltip={{
+            label: `About the ${strings.referenceData.model.modelType}`,
+            ...strings.referenceData.model.tooltips.modelType,
+          }}
+        />
+      </div>
+
       <Card>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-semibold text-fg-primary">{strings.referenceData.model.title}</p>
-            <p className="text-sm text-fg-secondary">{strings.referenceData.model.subtitle}</p>
-          </div>
-          <EditForm active={active} species={species} onDrafted={setDraft} />
+        <p className="text-sm font-semibold text-fg-primary">{strings.referenceData.model.dnbpFactor}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {Object.entries(active.dnbp_factor_by_species).map(([code, value]) => (
+            <Badge key={code} variant="accent">
+              {code}: {Number(value).toFixed(2)}
+            </Badge>
+          ))}
         </div>
+      </Card>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">
-              {strings.referenceData.model.cifBuffer}
-            </p>
-            <p className="text-lg font-semibold tabular-nums">{Number(active.cif_buffer_per_kg).toFixed(2)}</p>
-          </div>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">Ref data version</p>
-            <p className="text-sm text-fg-secondary">{active.ref_data_version}</p>
-            <p className="mt-2 flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-fg-tertiary">
-              {strings.referenceData.model.modelType}
-              <InfoTooltip
-                label={`About the ${strings.referenceData.model.modelType}`}
-                what={strings.referenceData.model.tooltips.modelType.what}
-                how={strings.referenceData.model.tooltips.modelType.how}
-              />
-            </p>
-            <Badge variant="neutral">{active.model_type}</Badge>
-          </div>
+      <Card>
+        <p className="text-sm font-semibold text-fg-primary">{strings.referenceData.model.operationalTitle}</p>
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <StatTile
+            label={strings.referenceData.model.bidCheckThreshold}
+            value={`${Number(active.bid_check_close_threshold_pct)}%`}
+            tooltip={{
+              label: `About ${strings.referenceData.model.bidCheckThreshold}`,
+              ...strings.referenceData.model.tooltips.bidCheckThreshold,
+            }}
+          />
+          <StatTile
+            label={strings.referenceData.model.weightTolerance}
+            value={`${Number(active.buyer_weight_band_tolerance_pct)}%`}
+            tooltip={{
+              label: `About ${strings.referenceData.model.weightTolerance}`,
+              ...strings.referenceData.model.tooltips.weightTolerance,
+            }}
+          />
+          <StatTile
+            label={strings.referenceData.model.staleHours}
+            value={`${active.stale_instruction_hours} hours`}
+            tooltip={{
+              label: `About ${strings.referenceData.model.staleHours}`,
+              ...strings.referenceData.model.tooltips.staleHours,
+            }}
+          />
         </div>
+      </Card>
 
-        <div className="mt-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">
-            {strings.referenceData.model.dnbpFactor}
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {Object.entries(active.dnbp_factor_by_species).map(([code, value]) => (
-              <Badge key={code} variant="accent">
-                {code}: {Number(value).toFixed(2)}
-              </Badge>
-            ))}
-          </div>
+      <Card>
+        <p className="text-sm font-semibold text-fg-primary">{strings.referenceData.model.outlierTitle}</p>
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatTile
+            label={strings.referenceData.model.outlierThreshold}
+            value={`${Number(active.dnbp_outlier_threshold_pct)}%`}
+            tooltip={{
+              label: `About ${strings.referenceData.model.outlierThreshold}`,
+              ...strings.referenceData.model.tooltips.outlierThreshold,
+            }}
+          />
+          <StatTile
+            label={strings.referenceData.model.outlierLookbackDays}
+            value={`${active.dnbp_outlier_lookback_days} days`}
+            tooltip={{
+              label: `About ${strings.referenceData.model.outlierLookbackDays}`,
+              ...strings.referenceData.model.tooltips.outlierLookbackDays,
+            }}
+          />
+          <StatTile
+            label={strings.referenceData.model.analyticsTrailingDays}
+            value={`${active.analytics_trailing_days_for_rate} days`}
+            tooltip={{
+              label: `About ${strings.referenceData.model.analyticsTrailingDays}`,
+              ...strings.referenceData.model.tooltips.analyticsTrailingDays,
+            }}
+          />
+          <StatTile
+            label={strings.referenceData.model.deliveryEscalationMinutes}
+            value={`${active.delivery_escalation_minutes} min`}
+            tooltip={{
+              label: `About ${strings.referenceData.model.deliveryEscalationMinutes}`,
+              ...strings.referenceData.model.tooltips.deliveryEscalationMinutes,
+            }}
+          />
         </div>
+      </Card>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          <div>
-            <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-fg-tertiary">
-              {strings.referenceData.model.bidCheckThreshold}
-              <InfoTooltip
-                label={`About ${strings.referenceData.model.bidCheckThreshold}`}
-                what={strings.referenceData.model.tooltips.bidCheckThreshold.what}
-                how={strings.referenceData.model.tooltips.bidCheckThreshold.how}
-              />
-            </p>
-            <p className="text-lg font-semibold tabular-nums">{Number(active.bid_check_close_threshold_pct)}</p>
-          </div>
-          <div>
-            <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-fg-tertiary">
-              {strings.referenceData.model.weightTolerance}
-              <InfoTooltip
-                label={`About ${strings.referenceData.model.weightTolerance}`}
-                what={strings.referenceData.model.tooltips.weightTolerance.what}
-                how={strings.referenceData.model.tooltips.weightTolerance.how}
-              />
-            </p>
-            <p className="text-lg font-semibold tabular-nums">{Number(active.buyer_weight_band_tolerance_pct)}</p>
-          </div>
-          <div>
-            <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-fg-tertiary">
-              {strings.referenceData.model.staleHours}
-              <InfoTooltip
-                label={`About ${strings.referenceData.model.staleHours}`}
-                what={strings.referenceData.model.tooltips.staleHours.what}
-                how={strings.referenceData.model.tooltips.staleHours.how}
-              />
-            </p>
-            <p className="text-lg font-semibold tabular-nums">{active.stale_instruction_hours}</p>
-          </div>
+      <Card>
+        <p className="text-sm font-semibold text-fg-primary">{strings.referenceData.model.entryBoundsTitle}</p>
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatTile
+            label={strings.referenceData.model.entryBoundsMaxHeadCount}
+            value={Number(active.entry_bounds_max_head_count).toLocaleString("en-AU")}
+            tooltip={{
+              label: `About ${strings.referenceData.model.entryBoundsMaxHeadCount}`,
+              ...strings.referenceData.model.tooltips.entryBoundsMaxHeadCount,
+            }}
+          />
+          <StatTile
+            label={strings.referenceData.model.entryBoundsMaxPricePerHead}
+            value={Number(active.entry_bounds_max_price_per_head).toLocaleString("en-AU", {
+              style: "currency",
+              currency: "AUD",
+              maximumFractionDigits: 0,
+            })}
+            tooltip={{
+              label: `About ${strings.referenceData.model.entryBoundsMaxPricePerHead}`,
+              ...strings.referenceData.model.tooltips.entryBoundsMaxPricePerHead,
+            }}
+          />
+          <StatTile
+            label="Weight band multiple"
+            value={`${Number(active.entry_bounds_weight_lower_multiple)}x – ${Number(active.entry_bounds_weight_upper_multiple)}x`}
+            tooltip={{ label: "About the weight band multiple", ...strings.referenceData.model.tooltips.entryBoundsWeightMultiples }}
+          />
+          <StatTile
+            label="Fallback weight range"
+            value={`${Number(active.entry_bounds_fallback_weight_min_kg)} – ${Number(active.entry_bounds_fallback_weight_max_kg)} kg`}
+            tooltip={{ label: "About the fallback weight range", ...strings.referenceData.model.tooltips.entryBoundsFallbackWeight }}
+          />
         </div>
+      </Card>
 
-        <div className="mt-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">
-            {strings.referenceData.model.outlierTitle}
-          </p>
-          <div className="mt-2 grid gap-4 sm:grid-cols-4">
-            <div>
-              <p className="flex items-center gap-1 text-xs text-fg-tertiary">
-                {strings.referenceData.model.outlierThreshold}
-                <InfoTooltip
-                  label={`About ${strings.referenceData.model.outlierThreshold}`}
-                  what={strings.referenceData.model.tooltips.outlierThreshold.what}
-                  how={strings.referenceData.model.tooltips.outlierThreshold.how}
-                />
-              </p>
-              <p className="text-lg font-semibold tabular-nums">{Number(active.dnbp_outlier_threshold_pct)}</p>
-            </div>
-            <div>
-              <p className="flex items-center gap-1 text-xs text-fg-tertiary">
-                {strings.referenceData.model.outlierLookbackDays}
-                <InfoTooltip
-                  label={`About ${strings.referenceData.model.outlierLookbackDays}`}
-                  what={strings.referenceData.model.tooltips.outlierLookbackDays.what}
-                  how={strings.referenceData.model.tooltips.outlierLookbackDays.how}
-                />
-              </p>
-              <p className="text-lg font-semibold tabular-nums">{active.dnbp_outlier_lookback_days}</p>
-            </div>
-            <div>
-              <p className="flex items-center gap-1 text-xs text-fg-tertiary">
-                {strings.referenceData.model.analyticsTrailingDays}
-                <InfoTooltip
-                  label={`About ${strings.referenceData.model.analyticsTrailingDays}`}
-                  what={strings.referenceData.model.tooltips.analyticsTrailingDays.what}
-                  how={strings.referenceData.model.tooltips.analyticsTrailingDays.how}
-                />
-              </p>
-              <p className="text-lg font-semibold tabular-nums">{active.analytics_trailing_days_for_rate}</p>
-            </div>
-            <div>
-              <p className="flex items-center gap-1 text-xs text-fg-tertiary">
-                {strings.referenceData.model.deliveryEscalationMinutes}
-                <InfoTooltip
-                  label={`About ${strings.referenceData.model.deliveryEscalationMinutes}`}
-                  what={strings.referenceData.model.tooltips.deliveryEscalationMinutes.what}
-                  how={strings.referenceData.model.tooltips.deliveryEscalationMinutes.how}
-                />
-              </p>
-              <p className="text-lg font-semibold tabular-nums">{active.delivery_escalation_minutes}</p>
-            </div>
-          </div>
-        </div>
+      <Card className="flex items-center justify-between gap-3">
+        <p className="flex items-center gap-1 text-sm font-semibold text-fg-primary">
+          {strings.referenceData.model.benchmarkTitle}
+          <InfoTooltip
+            label={`About ${strings.referenceData.model.benchmarkHighlightThreshold}`}
+            what={strings.referenceData.model.tooltips.benchmarkHighlightThreshold.what}
+            how={strings.referenceData.model.tooltips.benchmarkHighlightThreshold.how}
+          />
+        </p>
+        <span className="text-lg font-semibold tabular-nums">
+          {Number(active.benchmark_compare_highlight_threshold_pct)}%
+        </span>
+      </Card>
 
-        <div className="mt-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-fg-tertiary">
-            {strings.referenceData.model.entryBoundsTitle}
-          </p>
-          <div className="mt-2 grid gap-4 sm:grid-cols-3">
-            <div>
-              <p className="flex items-center gap-1 text-xs text-fg-tertiary">
-                {strings.referenceData.model.entryBoundsMaxHeadCount}
-                <InfoTooltip
-                  label={`About ${strings.referenceData.model.entryBoundsMaxHeadCount}`}
-                  what={strings.referenceData.model.tooltips.entryBoundsMaxHeadCount.what}
-                  how={strings.referenceData.model.tooltips.entryBoundsMaxHeadCount.how}
-                />
-              </p>
-              <p className="text-lg font-semibold tabular-nums">{active.entry_bounds_max_head_count}</p>
-            </div>
-            <div>
-              <p className="flex items-center gap-1 text-xs text-fg-tertiary">
-                {strings.referenceData.model.entryBoundsMaxPricePerHead}
-                <InfoTooltip
-                  label={`About ${strings.referenceData.model.entryBoundsMaxPricePerHead}`}
-                  what={strings.referenceData.model.tooltips.entryBoundsMaxPricePerHead.what}
-                  how={strings.referenceData.model.tooltips.entryBoundsMaxPricePerHead.how}
-                />
-              </p>
-              <p className="text-lg font-semibold tabular-nums">
-                {Number(active.entry_bounds_max_price_per_head).toFixed(0)}
-              </p>
-            </div>
-            <div>
-              <p className="flex items-center gap-1 text-xs text-fg-tertiary">
-                {strings.referenceData.model.entryBoundsWeightLowerMultiple}
-                <InfoTooltip
-                  label={`About ${strings.referenceData.model.entryBoundsWeightLowerMultiple}`}
-                  what={strings.referenceData.model.tooltips.entryBoundsWeightMultiples.what}
-                  how={strings.referenceData.model.tooltips.entryBoundsWeightMultiples.how}
-                />
-              </p>
-              <p className="text-lg font-semibold tabular-nums">
-                {Number(active.entry_bounds_weight_lower_multiple)}x – {Number(active.entry_bounds_weight_upper_multiple)}x
-              </p>
-            </div>
-            <div>
-              <p className="flex items-center gap-1 text-xs text-fg-tertiary">
-                {strings.referenceData.model.entryBoundsFallbackWeightMinKg}
-                <InfoTooltip
-                  label={`About the fallback weight range`}
-                  what={strings.referenceData.model.tooltips.entryBoundsFallbackWeight.what}
-                  how={strings.referenceData.model.tooltips.entryBoundsFallbackWeight.how}
-                />
-              </p>
-              <p className="text-lg font-semibold tabular-nums">
-                {Number(active.entry_bounds_fallback_weight_min_kg)}kg – {Number(active.entry_bounds_fallback_weight_max_kg)}kg
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4">
-          <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-fg-tertiary">
-            {strings.referenceData.model.benchmarkTitle}
-            <InfoTooltip
-              label={`About ${strings.referenceData.model.benchmarkHighlightThreshold}`}
-              what={strings.referenceData.model.tooltips.benchmarkHighlightThreshold.what}
-              how={strings.referenceData.model.tooltips.benchmarkHighlightThreshold.how}
-            />
-          </p>
-          <p className="text-lg font-semibold tabular-nums">
-            {Number(active.benchmark_compare_highlight_threshold_pct)}
-          </p>
-        </div>
-
-        <div className="mt-4">
-          <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-fg-tertiary">
-            {strings.referenceData.model.calendarTitle}
-            <InfoTooltip
-              label={`About the ${strings.referenceData.model.calendarTitle}`}
-              what={strings.referenceData.model.tooltips.calendar.what}
-              how={strings.referenceData.model.tooltips.calendar.how}
-            />
-          </p>
-          <div className="mt-2 flex flex-col gap-1 text-sm">
-            {active.saleyard_calendar.map((row) => (
-              <div key={`${row.saleyard}-${row.day}`} className="flex flex-wrap items-baseline gap-x-3">
-                <span className="font-medium">{row.saleyard}</span>
-                <span className="text-fg-secondary">
+      <Card>
+        <p className="flex items-center gap-1 text-sm font-semibold text-fg-primary">
+          {strings.referenceData.model.calendarTitle}
+          <InfoTooltip
+            label={`About the ${strings.referenceData.model.calendarTitle}`}
+            what={strings.referenceData.model.tooltips.calendar.what}
+            how={strings.referenceData.model.tooltips.calendar.how}
+          />
+        </p>
+        <table className="mt-3 w-full text-sm">
+          <thead>
+            <tr className="border-b border-subtle text-left text-xs uppercase tracking-wide text-fg-tertiary">
+              <th className="py-2 pr-3 font-medium">Saleyard</th>
+              <th className="py-2 pr-3 font-medium">Day</th>
+              <th className="py-2 pr-3 text-right font-medium">Prepayment</th>
+              <th className="py-2 pr-3 font-medium">Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            {active.saleyard_calendar.map((row, i) => (
+              <tr key={`${row.saleyard}-${row.day}`} className={i % 2 === 1 ? "bg-sunken" : undefined}>
+                <td className="py-2 pr-3 font-medium">{row.saleyard}</td>
+                <td className="py-2 pr-3 text-fg-secondary">
                   {row.day.charAt(0)}
                   {row.day.slice(1).toLowerCase()}
-                </span>
-                <span className="tabular-nums">
+                </td>
+                <td className="py-2 pr-3 text-right tabular-nums">
                   {Number(row.prepayment_aud).toLocaleString("en-AU", { style: "currency", currency: "AUD" })}
-                </span>
-                {row.note ? <span className="text-fg-tertiary">{row.note}</span> : null}
-              </div>
+                </td>
+                <td className="py-2 pr-3 text-fg-tertiary">{row.note ?? "—"}</td>
+              </tr>
             ))}
-          </div>
-        </div>
+          </tbody>
+        </table>
       </Card>
 
       {draft ? <ImpactAndActivate version={draft} onActivated={() => { setDraft(null); void load(); }} /> : null}
 
       <Card>
         <p className="text-sm font-semibold text-fg-primary">{strings.referenceData.model.versionHistory}</p>
-        <div className="mt-2 flex flex-col gap-3">
+        <div className="mt-3 flex flex-col divide-y divide-subtle">
           {versions.map((v) => (
-            <div key={v.id} className="text-sm">
+            <div key={v.id} className="py-3 text-sm first:pt-0 last:pb-0">
               <div className="flex items-center justify-between">
                 <span>
                   {<DateTime value={v.created_at} />} {v.note ? `— ${v.note}` : ""}
