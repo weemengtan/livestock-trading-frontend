@@ -11,7 +11,8 @@
     "start": "next start",
     "lint": "eslint",
     "pretypecheck": "next typegen",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --no-warnings --test lib/*.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.23",

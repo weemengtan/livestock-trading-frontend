@@ -19,26 +19,19 @@ import { Label } from "@/components/ui/label";
 import { StatTile } from "@/components/ui/stat-tile";
 import { toast } from "@/components/ui/toast";
 import { useAuthStore } from "@/lib/auth-store";
+import { tidyDecimal as tidy } from "@/lib/decimal-format";
 import { ApiError } from "@/lib/api-client";
 import {
   referenceDataApi,
   type ActiveConfig,
-  type ImpactPreview,
   type KeyRef,
   type NewEntry,
   type ReferenceDataAuditEntry,
   type SaleyardCalendarRow,
   type ReferenceDataVersion,
-  type SpeciesRow,
 } from "@/lib/reference-data-api";
 import { strings } from "@/lib/strings";
 import { withErrorToast } from "@/lib/with-error-toast";
-
-// The API returns fixed-scale decimals ("14.0000000000"); show them the way a person writes them.
-function tidy(value: string | null | undefined): string {
-  if (!value) return "";
-  return value.includes(".") ? value.replace(/\.?0+$/, "") : value;
-}
 
 const WEEKDAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
 
@@ -46,23 +39,14 @@ type CalendarDraftRow = SaleyardCalendarRow & { removed: boolean; isNew: boolean
 
 function EditForm({
   active,
-  species,
   onDrafted,
 }: {
   active: ActiveConfig;
-  species: SpeciesRow[];
   onDrafted: (version: ReferenceDataVersion) => void;
 }) {
   const accessToken = useAuthStore((s) => s.accessToken);
   const [open, setOpen] = React.useState(false);
-  const [cifBuffer, setCifBuffer] = React.useState(tidy(active.cif_buffer_per_kg));
   const [note, setNote] = React.useState("");
-  const [factors, setFactors] = React.useState<Record<string, string>>(
-    Object.fromEntries(species.map((s) => [s.code, tidy(active.dnbp_factor_by_species[s.code])]))
-  );
-  const [weights, setWeights] = React.useState<Record<string, string>>(
-    Object.fromEntries(species.map((s) => [s.code, tidy(active.standard_weight_by_species[s.code])]))
-  );
   const [bidThreshold, setBidThreshold] = React.useState(tidy(active.bid_check_close_threshold_pct));
   const [tolerance, setTolerance] = React.useState(tidy(active.buyer_weight_band_tolerance_pct));
   const [staleHours, setStaleHours] = React.useState(String(active.stale_instruction_hours));
@@ -112,7 +96,6 @@ function EditForm({
     setSubmitting(true);
     try {
       const entries: NewEntry[] = [
-        { table_key: "cif_buffer_per_kg", key1: null, value: cifBuffer },
         { table_key: "bid_check_close_threshold_pct", key1: null, value: bidThreshold },
         { table_key: "buyer_weight_band_tolerance_pct", key1: null, value: tolerance },
         { table_key: "stale_instruction_hours", key1: null, value: staleHours },
@@ -146,14 +129,6 @@ function EditForm({
       const removals: KeyRef[] = calendar
         .filter((row) => row.removed && !row.isNew)
         .map((row) => ({ table_key: "saleyard_calendar", key1: row.saleyard, key2: row.day }));
-      for (const s of species) {
-        // A value entered sets it; clearing a value the active version has removes it.
-        if (factors[s.code]) entries.push({ table_key: "dnbp_factor_by_species", key1: s.code, value: factors[s.code] });
-        else if (s.code in active.dnbp_factor_by_species) removals.push({ table_key: "dnbp_factor_by_species", key1: s.code });
-        if (weights[s.code]) entries.push({ table_key: "standard_weight_by_species", key1: s.code, value: weights[s.code] });
-        else if (s.code in active.standard_weight_by_species)
-          removals.push({ table_key: "standard_weight_by_species", key1: s.code });
-      }
       const version = await referenceDataApi.createVersion(
         { effective_from: new Date().toISOString(), note: note || undefined, entries, removals },
         accessToken
@@ -175,42 +150,13 @@ function EditForm({
       <DialogContent className="max-w-lg">
         <DialogTitle>{strings.referenceData.editor.title}</DialogTitle>
         <DialogDescription>
-          This creates a new version. Nothing takes effect until you preview its impact and activate it.
+          {strings.referenceData.settings.editDescription}
         </DialogDescription>
         {/* eslint-disable-next-line local/no-raw-design-values -- 60vh caps this dialog's scroll area
             to a viewport fraction; no spacing/sizing token or Tailwind scale step expresses "% of
             viewport height", and percentage-height utilities (max-h-2/3 etc.) are relative to the
             parent, not the viewport, which isn't equivalent here. */}
         <form className="mt-4 flex max-h-[60vh] flex-col gap-4 overflow-y-auto" onSubmit={handleSubmit}>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="cif-buffer">{strings.referenceData.model.cifBuffer}</Label>
-            <Input id="cif-buffer" value={cifBuffer} onChange={(e) => setCifBuffer(e.target.value)} required />
-          </div>
-
-          <div>
-            <p className="text-sm font-medium text-fg-secondary">{strings.referenceData.model.dnbpFactor}</p>
-            <p className="mt-1 text-xs text-fg-tertiary">{strings.referenceData.model.clearToRemove}</p>
-            <div className="mt-2 flex flex-col gap-2">
-              {species.map((s) => (
-                <div key={s.code} className="grid grid-cols-3 items-center gap-2">
-                  <span className="text-sm">{s.display_name}</span>
-                  <Input
-                    aria-label={`${s.code} factor`}
-                    value={factors[s.code] ?? ""}
-                    onChange={(e) => setFactors((prev) => ({ ...prev, [s.code]: e.target.value }))}
-                    placeholder="not set"
-                  />
-                  <Input
-                    aria-label={`${s.code} standard weight`}
-                    value={weights[s.code] ?? ""}
-                    onChange={(e) => setWeights((prev) => ({ ...prev, [s.code]: e.target.value }))}
-                    placeholder="weight (kg)"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div>
             <p className="text-sm font-medium text-fg-secondary">{strings.referenceData.model.operationalTitle}</p>
             <div className="mt-2 flex flex-col gap-2">
@@ -564,106 +510,50 @@ function VersionAuditTrail({ versionId }: { versionId: string }) {
   );
 }
 
-function ImpactAndActivate({ version, onActivated }: { version: ReferenceDataVersion; onActivated: () => void }) {
+/**
+ * Activating an operational-settings version. Settings can't move the Do Not
+ * Buy Price, so there is no price impact to review — but the server still
+ * expects the preview step before it allows activation, so it is fetched on
+ * open and its (empty) result is not shown.
+ */
+function ActivateSettings({ version, onActivated }: { version: ReferenceDataVersion; onActivated: () => void }) {
   const accessToken = useAuthStore((s) => s.accessToken);
-  const [impact, setImpact] = React.useState<ImpactPreview | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [ready, setReady] = React.useState(false);
   const [activating, setActivating] = React.useState(false);
 
   React.useEffect(() => {
+    let cancelled = false;
     (async () => {
-      try {
-        setImpact(await referenceDataApi.previewImpact(version.id, accessToken));
-      } catch (err) {
-        toast({ title: err instanceof ApiError ? err.message : "Could not compute impact", variant: "danger" });
-      } finally {
-        setLoading(false);
-      }
+      const preview = await withErrorToast(() => referenceDataApi.previewImpact(version.id, accessToken), "Could not prepare activation");
+      if (!cancelled) setReady(preview !== undefined);
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [version.id, accessToken]);
 
   async function handleActivate() {
     setActivating(true);
-    try {
-      await referenceDataApi.activateVersion(version.id, accessToken);
-      toast({ title: "Version activated" });
-      onActivated();
-    } catch (err) {
-      toast({ title: err instanceof ApiError ? err.message : "Could not activate", variant: "danger" });
-    } finally {
-      setActivating(false);
-    }
+    const activated = await withErrorToast(() => referenceDataApi.activateVersion(version.id, accessToken), "Could not activate");
+    setActivating(false);
+    if (!activated) return;
+    toast({ title: "Version activated" });
+    onActivated();
   }
-
-  if (loading) return <p className="text-sm text-fg-tertiary">{strings.referenceData.editor.previewing}</p>;
-  if (!impact) return null;
-
-  const exposure = Number(impact.aggregate_exposure_delta_aud);
 
   return (
     <Card className="border-status-close-fg">
-      <p className="text-sm font-semibold text-fg-primary">{strings.referenceData.impact.title}</p>
-      <p className="mt-1 text-sm text-status-close-fg">{strings.referenceData.impact.warning}</p>
-
-      {impact.lines_unpriced > 0 ? (
-        <p role="alert" className="mt-2 text-sm font-semibold text-status-breach-fg">
-          {impact.lines_unpriced} {strings.referenceData.impact.unpricedWarning}
-        </p>
-      ) : null}
-
-      <div className="mt-3 flex gap-6 text-sm">
-        <span>
-          {impact.lines_affected} {strings.referenceData.impact.linesAffected}
-        </span>
-        <span className="inline-flex items-center gap-1 tabular-nums">
-          {strings.referenceData.impact.aggregateExposure}:{" "}
-          <strong className={exposure < 0 ? "text-status-pass-fg" : exposure > 0 ? "text-status-breach-fg" : ""}>
-            {exposure.toLocaleString("en-AU", { style: "currency", currency: "AUD" })}
-          </strong>
-          <InfoTooltip
-            label={`About ${strings.referenceData.impact.aggregateExposure}`}
-            what={strings.referenceData.impact.tooltips.aggregateExposure.what}
-            how={strings.referenceData.impact.tooltips.aggregateExposure.how}
-          />
-        </span>
-      </div>
-
-      {impact.lines.length > 0 ? (
-        <div className="mt-3 max-h-64 overflow-y-auto rounded-md border border-subtle">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-subtle text-left text-xs uppercase tracking-wide text-fg-tertiary">
-                <th className="px-3 py-2 font-medium">Contract</th>
-                <th className="px-3 py-2 font-medium">Species</th>
-                <th className="px-3 py-2 font-medium tabular-nums">Before</th>
-                <th className="px-3 py-2 font-medium tabular-nums">After</th>
-              </tr>
-            </thead>
-            <tbody>
-              {impact.lines.map((line) => (
-                <tr key={line.order_line_id} className="border-b border-subtle last:border-0">
-                  <td className="px-3 py-2">{line.contract_no}</td>
-                  <td className="px-3 py-2">{line.species}</td>
-                  <td className="px-3 py-2 tabular-nums">{line.old_dnbp ? `$${Number(line.old_dnbp).toFixed(4)}` : "—"}</td>
-                  <td className="px-3 py-2 tabular-nums font-semibold">
-                    {line.new_dnbp ? `$${Number(line.new_dnbp).toFixed(4)}` : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
-
+      <p className="text-sm font-semibold text-fg-primary">{strings.referenceData.editor.readyTitle}</p>
+      <p className="mt-1 text-sm text-fg-secondary">{strings.referenceData.settings.activateNote}</p>
       <Dialog>
         <DialogTrigger asChild>
-          <Button className="mt-4" disabled={activating}>
-            {strings.referenceData.impact.activateButton}
+          <Button className="mt-4" disabled={!ready || activating}>
+            {ready ? strings.referenceData.impact.activateButton : strings.referenceData.editor.previewing}
           </Button>
         </DialogTrigger>
         <DialogContent>
           <DialogTitle>{strings.referenceData.impact.confirmTitle}</DialogTitle>
-          <DialogDescription>{strings.referenceData.impact.confirmBody}</DialogDescription>
+          <DialogDescription>{strings.referenceData.settings.activateNote}</DialogDescription>
           <div className="mt-4 flex justify-end gap-2">
             <DialogClose asChild>
               <Button variant="secondary">Cancel</Button>
@@ -680,10 +570,9 @@ function ImpactAndActivate({ version, onActivated }: { version: ReferenceDataVer
   );
 }
 
-export function DnbpModelPanel() {
+export function OperationalSettingsPanel() {
   const accessToken = useAuthStore((s) => s.accessToken);
   const [active, setActive] = React.useState<ActiveConfig | null>(null);
-  const [species, setSpecies] = React.useState<SpeciesRow[]>([]);
   const [versions, setVersions] = React.useState<ReferenceDataVersion[]>([]);
   const [draft, setDraft] = React.useState<ReferenceDataVersion | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -691,13 +580,11 @@ export function DnbpModelPanel() {
   const load = React.useCallback(async () => {
     try {
       await withErrorToast(async () => {
-        const [activeConfig, speciesRows, versionRows] = await Promise.all([
+        const [activeConfig, versionRows] = await Promise.all([
           referenceDataApi.getActive(accessToken),
-          referenceDataApi.listSpecies(accessToken),
           referenceDataApi.listVersions(accessToken),
         ]);
         setActive(activeConfig);
-        setSpecies(speciesRows.filter((s) => s.is_active));
         setVersions(versionRows);
       });
     } finally {
@@ -711,40 +598,21 @@ export function DnbpModelPanel() {
 
   if (loading || !active) return <p className="text-sm text-fg-tertiary">Loading…</p>;
 
-  const activeVersion = versions.find((v) => v.is_active);
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-fg-primary">{strings.referenceData.model.title}</p>
-          <p className="text-sm text-fg-secondary">{strings.referenceData.model.subtitle}</p>
+          <p className="text-sm font-semibold text-fg-primary">{strings.referenceData.settings.title}</p>
+          <p className="max-w-2xl text-sm text-fg-secondary">{strings.referenceData.settings.subtitle}</p>
         </div>
-        <EditForm active={active} species={species} onDrafted={setDraft} />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <StatTile label={strings.referenceData.model.cifBuffer} value={Number(active.cif_buffer_per_kg).toFixed(2)} />
-        <StatTile label="Ref data version" value={active.ref_data_version} hint={activeVersion ? `since ${new Date(activeVersion.activated_at ?? activeVersion.created_at).toLocaleDateString("en-AU")}` : undefined} />
-        <StatTile
-          label={strings.referenceData.model.modelType}
-          value={active.model_type}
-          tooltip={{
-            label: `About the ${strings.referenceData.model.modelType}`,
-            ...strings.referenceData.model.tooltips.modelType,
-          }}
-        />
+        <EditForm active={active} onDrafted={setDraft} />
       </div>
 
       <Card>
-        <p className="text-sm font-semibold text-fg-primary">{strings.referenceData.model.dnbpFactor}</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {Object.entries(active.dnbp_factor_by_species).map(([code, value]) => (
-            <Badge key={code} variant="accent">
-              {code}: {Number(value).toFixed(2)}
-            </Badge>
-          ))}
-        </div>
+        <p className="text-sm text-fg-secondary">{strings.referenceData.settings.pricingMoved}</p>
+        <p className="mt-1 text-sm text-fg-tertiary">
+          {strings.referenceData.settings.currentModel}: <strong className="text-fg-primary">{active.ref_data_version}</strong>
+        </p>
       </Card>
 
       <Card>
@@ -901,7 +769,7 @@ export function DnbpModelPanel() {
         </table>
       </Card>
 
-      {draft ? <ImpactAndActivate version={draft} onActivated={() => { setDraft(null); void load(); }} /> : null}
+      {draft ? <ActivateSettings version={draft} onActivated={() => { setDraft(null); void load(); }} /> : null}
 
       <Card>
         <p className="text-sm font-semibold text-fg-primary">{strings.referenceData.model.versionHistory}</p>

@@ -110,6 +110,8 @@ export function PublishPanel({
   snapshotId,
   snapshotStatus,
   activeLineIds,
+  generateHeldBack = false,
+  canRecalculate = true,
   issuesByLineId,
   lineById,
   onIssuesAcknowledged,
@@ -122,6 +124,13 @@ export function PublishPanel({
    * Only a Recalculate (which resets the snapshot to CALCULATED) unlocks it. */
   snapshotStatus: SnapshotStatus;
   activeLineIds: Set<string>;
+  /** True while the snapshot's prices come from an older DNBP model than the live one:
+   * a Buy Instruction built now would carry prices the live model no longer produces,
+   * so generating one waits for a recalculation (see lib/snapshot-model-rules.ts). */
+  generateHeldBack?: boolean;
+  /** False for a published snapshot that can no longer be recalculated (its prices came from
+   * an older DNBP model) — the "recalculate to publish again" hint would then be wrong. */
+  canRecalculate?: boolean;
   issuesByLineId: Map<string, ValidationIssue[]>;
   lineById: Map<string, OrderLine>;
   /** Acknowledging can only ever remove these issue ids from
@@ -400,7 +409,9 @@ export function PublishPanel({
           <p className="text-sm text-fg-tertiary">
             {snapshotStatus === "SUPERSEDED"
               ? strings.publication.publish.supersededNote
-              : strings.publication.publish.recalculateToRepublish}
+              : canRecalculate
+                ? strings.publication.publish.recalculateToRepublish
+                : strings.publication.publish.uploadAgainToReprice}
           </p>
         </div>
       ) : blocked.length > 0 ? (
@@ -520,7 +531,7 @@ export function PublishPanel({
       ) : (
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="mt-3" disabled={activeLineIds.size === 0}>
+            <Button className="mt-3" disabled={activeLineIds.size === 0 || generateHeldBack}>
               {strings.buyInstructions.generate}
             </Button>
           </DialogTrigger>

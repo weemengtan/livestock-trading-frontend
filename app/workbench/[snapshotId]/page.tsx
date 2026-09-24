@@ -7,14 +7,17 @@ import { AuthGuard } from "@/components/auth-guard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ModelGuardBanner } from "@/components/workbench/model-guard-banner";
 import { OrderWorkbenchGrid } from "@/components/workbench/order-workbench-grid";
 import { PublishPanel } from "@/components/workbench/publish-panel";
 import { useAuthStore } from "@/lib/auth-store";
+import { evaluateModelGuard } from "@/lib/snapshot-model-rules";
 import {
   type CorrectionRequest,
   type OrderLine,
   type OrderWorkings,
   type Snapshot,
+  type SnapshotModelStatus,
   type ValidationIssue,
   workbenchApi,
 } from "@/lib/workbench-api";
@@ -35,6 +38,7 @@ export default function WorkbenchSnapshotPage({ params }: { params: Promise<{ sn
 function WorkbenchContent({ snapshotId }: { snapshotId: string }) {
   const accessToken = useAuthStore((s) => s.accessToken);
   const [snapshot, setSnapshot] = React.useState<Snapshot | null>(null);
+  const [modelStatus, setModelStatus] = React.useState<SnapshotModelStatus | null>(null);
   const [activeLines, setActiveLines] = React.useState<OrderLine[]>([]);
   const [workingsByLineId, setWorkingsByLineId] = React.useState<Map<string, OrderWorkings>>(new Map());
   const [issuesByLineId, setIssuesByLineId] = React.useState<Map<string, ValidationIssue[]>>(new Map());
@@ -48,13 +52,17 @@ function WorkbenchContent({ snapshotId }: { snapshotId: string }) {
   const load = React.useCallback(async () => {
     try {
       await withErrorToast(async () => {
-        const [snap, activeLineRows, issueRows, correctionRows] = await Promise.all([
+        const [snap, activeLineRows, issueRows, correctionRows, modelRow] = await Promise.all([
           workbenchApi.getSnapshot(snapshotId, accessToken),
           workbenchApi.listLines(snapshotId, accessToken),
           workbenchApi.listIssues(snapshotId, accessToken),
           workbenchApi.listCorrectionRequests(snapshotId, accessToken),
+          // Advisory: if it can't be fetched the page still works, and the
+          // server refuses a stale publish regardless (see snapshot-model-rules).
+          workbenchApi.getModelStatus(snapshotId, accessToken).catch(() => null),
         ]);
         setSnapshot(snap);
+        setModelStatus(modelRow);
         setActiveLines(activeLineRows);
         setActiveLineIds(new Set(activeLineRows.map((l) => l.id)));
 
@@ -104,6 +112,8 @@ function WorkbenchContent({ snapshotId }: { snapshotId: string }) {
     return <EmptyState title="Snapshot not found" />;
   }
 
+  const modelGuard = evaluateModelGuard(snapshot.status, modelStatus);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -116,17 +126,30 @@ function WorkbenchContent({ snapshotId }: { snapshotId: string }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" onClick={handleCalculate} disabled={calculating}>
-            {calculating ? "Calculating…" : "Recalculate"}
-          </Button>
+          {modelGuard.canRecalculate ? (
+            <Button size="sm" onClick={handleCalculate} disabled={calculating}>
+              {calculating ? "Calculating…" : "Recalculate"}
+            </Button>
+          ) : null}
         </div>
       </div>
+
+      {modelStatus ? (
+        <ModelGuardBanner
+          guard={modelGuard}
+          liveModelName={modelStatus.live_model_name}
+          onRecalculate={handleCalculate}
+          recalculating={calculating}
+        />
+      ) : null}
 
       {snapshot.status === "CALCULATED" || snapshot.status === "PUBLISHED" || snapshot.status === "SUPERSEDED" ? (
         <PublishPanel
           snapshotId={snapshot.id}
           snapshotStatus={snapshot.status}
           activeLineIds={activeLineIds}
+          generateHeldBack={!modelGuard.canGenerateInstruction}
+          canRecalculate={modelGuard.canRecalculate}
           issuesByLineId={issuesByLineId}
           lineById={lineById}
           onIssuesAcknowledged={(issueIds) => {

@@ -101,10 +101,9 @@ export type KeyRef = {
 };
 
 export type NewEntry = {
+  // Pricing parameters (CIF buffer, DNBP factors, standard weights) are part
+  // of a DNBP model now — see lib/dnbp-models-api.ts. The server rejects them here.
   table_key:
-    | "cif_buffer_per_kg"
-    | "dnbp_factor_by_species"
-    | "standard_weight_by_species"
     | "bid_check_close_threshold_pct"
     | "buyer_weight_band_tolerance_pct"
     | "stale_instruction_hours"

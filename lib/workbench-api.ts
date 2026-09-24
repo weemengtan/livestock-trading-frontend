@@ -105,6 +105,15 @@ export type DnbpProof = {
   formula: string;
 };
 
+/** Which DNBP model a snapshot's workings were computed under versus the one live now. */
+export type SnapshotModelStatus = {
+  live_model_id: string;
+  live_model_name: string;
+  calculated_under: { model_id: string | null; name: string; line_count: number }[];
+  /** True when any line was computed under a model other than the live one. */
+  stale: boolean;
+};
+
 export type ValidationIssue = {
   id: string;
   order_line_id: string;
@@ -157,6 +166,8 @@ export const workbenchApi = {
     apiFetch<OrderWorkings>(`/order-lines/${orderLineId}/workings`, auth(accessToken)),
   listWorkings: (snapshotId: string, accessToken: string | null) =>
     apiFetch<OrderWorkings[]>(`/snapshots/${snapshotId}/workings`, auth(accessToken)),
+  getModelStatus: (snapshotId: string, accessToken: string | null) =>
+    apiFetch<SnapshotModelStatus>(`/snapshots/${snapshotId}/model-status`, auth(accessToken)),
   getDnbpProof: (orderLineId: string, accessToken: string | null) =>
     apiFetch<DnbpProof>(`/order-lines/${orderLineId}/dnbp-proof`, auth(accessToken)),
   raiseCorrectionRequest: (

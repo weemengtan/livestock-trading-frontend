@@ -120,6 +120,110 @@ export const strings = {
   },
   referenceData: {
     title: "Reference Data",
+    dnbpModels: {
+      tabTitle: "DNBP models",
+      title: "DNBP models",
+      subtitle:
+        "Set up a pricing model now and choose the day it takes over. Only one model is live at a time — the switch happens by itself at 00:00 Singapore time on the chosen date.",
+      newButton: "New model",
+      loading: "Loading models…",
+      sections: { live: "Live now", upcoming: "Drafts and scheduled", history: "History" },
+      empty: {
+        live: "No model is live. Prices cannot be calculated until one is.",
+        upcoming: "Nothing is waiting. Create a model to schedule a change.",
+        history: "No replaced or cancelled models yet.",
+      },
+      status: {
+        DRAFT: "Draft — needs approval",
+        SCHEDULED: "Scheduled",
+        LIVE: "Live",
+        RETIRED: "Replaced",
+        CANCELLED: "Cancelled",
+      },
+      when: {
+        DRAFT: "Would go live",
+        SCHEDULED: "Goes live",
+        LIVE: "Live since",
+        RETIRED: "Was live from",
+        CANCELLED: "Was set for",
+      },
+      inMelbourne: "Melbourne",
+      params: {
+        cifBuffer: "CIF buffer",
+        factors: "DNBP factor",
+        weights: "Standard weight",
+        notSet: "not set",
+        formula: "Formula",
+      },
+      people: { createdBy: "Created by", approvedBy: "Approved by" },
+      actions: {
+        review: "Review impact & approve",
+        reschedule: "Change date",
+        cancel: "Cancel model",
+        template: "Use as template",
+      },
+      form: {
+        title: "New DNBP model",
+        description:
+          "Saved as a draft. It does nothing until you preview its impact and someone else approves it — then it goes live by itself on the date you choose.",
+        name: "Model name",
+        nameHint: "Suggested from the go-live date — change it if you like.",
+        activationDate: "Goes live on",
+        activationHint: "00:00 Singapore time on this date. Earliest is tomorrow.",
+        note: "Note (optional)",
+        speciesTitle: "Factors and standard weights",
+        speciesHint:
+          "Leave a species' factor empty to stop pricing it — its orders will be blocked until a factor is set.",
+        factor: "Factor",
+        weight: "Weight (kg)",
+        stopsPricing: "This model would stop pricing",
+        submit: "Save draft",
+        submitting: "Saving…",
+        needsName: "Give the model a name.",
+        needsDate: "Choose a go-live date from tomorrow onwards (Singapore time).",
+        needsCif: "The CIF buffer must be a number, 0 or more.",
+        invalidRow: "Factors and weights must be numbers greater than 0 — or left empty.",
+        needsFactor: "Give at least one species a DNBP factor.",
+      },
+      review: {
+        title: "Review impact",
+        description:
+          "Compared with the model that would be live just before this one switches on, priced on your latest snapshot.",
+        computing: "Computing impact…",
+        comparedWith: "Compared with",
+        approve: "Approve & schedule",
+        approving: "Approving…",
+        approvedToast: "Model scheduled",
+        secondPerson: "You created this model, so someone else must approve it.",
+        confirmNote: "Once approved, this model goes live by itself on the date shown. You can still cancel or reschedule it until then.",
+      },
+      reschedule: {
+        title: "Change go-live date",
+        withdrawsApproval:
+          "Moving the date withdraws the approval. The model goes back to draft and needs a fresh impact review and approval before it can go live.",
+        submit: "Change date",
+        toast: "Date changed — approval needed again",
+      },
+      cancel: {
+        title: "Cancel this model?",
+        body: "It will never go live. This cannot be undone, but you can create a new model any time.",
+        confirm: "Cancel model",
+        keep: "Keep it",
+        toast: "Model cancelled",
+      },
+      createdToast: "Draft saved",
+    },
+    settings: {
+      tabTitle: "Operational settings",
+      title: "Operational settings",
+      subtitle:
+        "Buyer, tuning and saleyard settings. They can't change the Do Not Buy Price, so they take effect as soon as they are activated. Pricing parameters live under DNBP models.",
+      editDescription:
+        "These settings can't change the Do Not Buy Price. This creates a new version that takes effect once you activate it.",
+      pricingMoved: "Pricing parameters (CIF buffer, DNBP factors, standard weights) are managed under DNBP models.",
+      currentModel: "Live model",
+      activateNote: "These settings don't change the Do Not Buy Price. Activating them takes effect immediately.",
+    },
     model: {
       title: "The DNBP model",
       subtitle: "Bobby and Bing's shared workbench — every change is versioned, previewed, and audited.",
@@ -231,6 +335,7 @@ export const strings = {
       addSpeciesRow: "Add species",
       previewButton: "Preview impact",
       previewing: "Computing impact…",
+      readyTitle: "Ready to activate",
     },
     impact: {
       title: "Impact preview",
@@ -700,6 +805,7 @@ export const strings = {
       alreadyPublishedButton: "Published",
       alreadyPublishedAt: "Published",
       recalculateToRepublish: "Recalculate this snapshot to review and publish again.",
+      uploadAgainToReprice: "A newer DNBP model is now live. Upload the order file again to price it under that model.",
       supersededButton: "Superseded",
       supersededNote: "A later submission has since been published — this snapshot's price is no longer current.",
       tooltips: {
@@ -711,6 +817,16 @@ export const strings = {
     },
   },
   workbench: {
+    modelGuard: {
+      recalculateTitle: "Calculated under an older DNBP model",
+      // {stale} and {live} are model names, filled in by the banner.
+      recalculateBody:
+        "These prices were calculated under {stale}, but {live} is now live. Recalculate before generating a Buy Instruction so the prices match the live model.",
+      uploadAgainTitle: "Published under an older DNBP model",
+      uploadAgainBody:
+        "These prices were published under {stale}, and {live} is now live. They can't be recalculated because they are the record of what buyers received — upload the order file again to price it under {live}.",
+      recalculate: "Recalculate now",
+    },
     statusLegend: {
       what: "A quick read on whether this order line is ready to publish.",
       how: "⛔ Blocked — a serious data problem must be resolved first. ✉ Correction requested — waiting on the abattoir. ⚠ Warning — needs review but doesn't block publishing. ✓ Ready — no open issues.",

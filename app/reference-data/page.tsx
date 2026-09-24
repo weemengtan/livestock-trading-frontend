@@ -4,22 +4,26 @@ import * as React from "react";
 import { AppShell } from "@/components/app-shell";
 import { AuthGuard } from "@/components/auth-guard";
 import { Tabs, TabButton } from "@/components/ui/tabs";
-import { DnbpModelPanel } from "@/components/reference-data/dnbp-model-panel";
+import { DnbpModelsPanel } from "@/components/reference-data/dnbp-models/dnbp-models-panel";
 import { IngestionContractPanel } from "@/components/reference-data/ingestion-contract-panel";
+import { OperationalSettingsPanel } from "@/components/reference-data/operational-settings-panel";
 import { RegistriesPanel } from "@/components/reference-data/registries-panel";
 import { strings } from "@/lib/strings";
 
-type Tab = "model" | "contract" | "registries";
+type Tab = "models" | "settings" | "contract" | "registries";
 
 export default function ReferenceDataPage() {
-  const [tab, setTab] = React.useState<Tab>("model");
+  const [tab, setTab] = React.useState<Tab>("models");
 
   return (
     <AuthGuard requiredRole={["OWNER", "ACCOUNTANT"]}>
       <AppShell title={strings.referenceData.title}>
         <Tabs className="mb-6">
-          <TabButton active={tab === "model"} onClick={() => setTab("model")}>
-            {strings.referenceData.model.title}
+          <TabButton active={tab === "models"} onClick={() => setTab("models")}>
+            {strings.referenceData.dnbpModels.tabTitle}
+          </TabButton>
+          <TabButton active={tab === "settings"} onClick={() => setTab("settings")}>
+            {strings.referenceData.settings.tabTitle}
           </TabButton>
           <TabButton active={tab === "contract"} onClick={() => setTab("contract")}>
             {strings.referenceData.contract.title}
@@ -29,7 +33,8 @@ export default function ReferenceDataPage() {
           </TabButton>
         </Tabs>
 
-        {tab === "model" ? <DnbpModelPanel /> : null}
+        {tab === "models" ? <DnbpModelsPanel /> : null}
+        {tab === "settings" ? <OperationalSettingsPanel /> : null}
         {tab === "contract" ? <IngestionContractPanel /> : null}
         {tab === "registries" ? <RegistriesPanel /> : null}
       </AppShell>
