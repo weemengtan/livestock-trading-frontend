@@ -42,3 +42,6 @@ next-env.d.ts
 
 # generated design-token output — rebuilt by `pnpm build:tokens`
 /packages/design-tokens/dist
+
+# keep the template tracked
+!.env.local.example
