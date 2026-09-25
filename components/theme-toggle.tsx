@@ -26,11 +26,8 @@ function readStoredTheme(): Theme | null {
   return null;
 }
 
-export function ThemeToggle({ defaultTheme }: { defaultTheme?: Theme } = {}) {
-  // `defaultTheme` only fills in for a buyer who has never explicitly
-  // chosen one (readStoredTheme() returns null) — an explicit choice,
-  // stored below by `choose`, always wins over it.
-  const [theme, setTheme] = React.useState<Theme | null>(() => readStoredTheme() ?? defaultTheme ?? null);
+export function ThemeToggle() {
+  const [theme, setTheme] = React.useState<Theme | null>(() => readStoredTheme());
 
   React.useEffect(() => {
     if (theme) document.documentElement.setAttribute("data-theme", theme);

@@ -532,7 +532,12 @@ export const strings = {
       buyLog: "Buy Log",
       marketIntel: "Market Intel",
       instruction: "Instruction",
-      scorecard: "Scorecard",
+      // Bottom-bar labels: one short word each so five tabs fit a 320-390px
+      // phone at 12px. The full names above stay as each tab's aria-label.
+      short: {
+        instruction: "Order",
+        marketIntel: "Market",
+      },
     },
     instruction: {
       title: "Instruction",

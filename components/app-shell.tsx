@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ThemeToggle, type Theme } from "@/components/theme-toggle";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/cn";
 import { useAuthStore } from "@/lib/auth-store";
 import { isConsoleRole, isOwnerLevel } from "@/lib/roles";
@@ -60,13 +60,15 @@ export function AppShell({ title, children }: { title: string; children: React.R
   const router = useRouter();
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
-  // Yard defaults to the "Yard" theme everywhere under /buyer — a buyer's
-  // device is out in the sun at the saleyard, not an office desktop, and
-  // the route itself (not the async auth-hydration `user.role`) is what's
-  // known synchronously on first render, so this can't race a login.
-  // An explicit choice via the toggle below (persisted to localStorage)
-  // always overrides it, for this buyer's device from then on.
-  const defaultTheme: Theme | undefined = pathname?.startsWith("/buyer") ? "yard" : undefined;
+  // Buyers are always on the "Yard" theme — a buyer's device is out in the
+  // sun at the saleyard, not an office desktop — so they get no theme
+  // toggle and any stored preference is ignored. The /buyer route is known
+  // synchronously on first render; `user.role` covers /profile, which
+  // buyers share with console users.
+  const isBuyerUi = !!pathname?.startsWith("/buyer") || user?.role === "BUYER";
+  React.useEffect(() => {
+    if (isBuyerUi) document.documentElement.setAttribute("data-theme", "yard");
+  }, [isBuyerUi]);
 
   async function handleSignOut() {
     await logout();
@@ -84,7 +86,7 @@ export function AppShell({ title, children }: { title: string; children: React.R
             <h1 className="text-lg font-semibold text-fg-primary">{title}</h1>
             {user ? <Badge variant="accent">{strings.shell.roleLabels[user.role]}</Badge> : null}
           </div>
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-3 sm:gap-4">
             {user?.role === "BUYER" ? (
               <Link
                 href="/buyer/settings"
@@ -100,7 +102,7 @@ export function AppShell({ title, children }: { title: string; children: React.R
                 <span aria-hidden="true">⚙</span>
               </Link>
             ) : null}
-            <ThemeToggle defaultTheme={defaultTheme} />
+            {isBuyerUi ? null : <ThemeToggle />}
             {user ? (
               <Link
                 href="/profile"
@@ -115,6 +117,35 @@ export function AppShell({ title, children }: { title: string; children: React.R
               >
                 <span className="hidden sm:inline">{user.email}</span>
                 <span className="sm:hidden">{strings.profile.navLabel}</span>
+              </Link>
+            ) : null}
+            {user?.role === "BUYER" ? (
+              // Scorecard is a review screen, not an auction-time tool, so it
+              // sits here instead of taking one of the five bottom-nav slots.
+              <Link
+                href="/buyer/scorecard"
+                aria-label={strings.scorecard.title}
+                title={strings.scorecard.title}
+                aria-current={pathname === "/buyer/scorecard" ? "page" : undefined}
+                className={cn(
+                  "inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors",
+                  pathname === "/buyer/scorecard"
+                    ? "bg-accent-subtle text-accent-default"
+                    : "text-fg-secondary hover:bg-sunken hover:text-fg-primary"
+                )}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M5 20V11M12 20V4M19 20v-6" />
+                </svg>
               </Link>
             ) : null}
             <Button variant="secondary" size="sm" onClick={handleSignOut}>
