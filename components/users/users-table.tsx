@@ -19,12 +19,13 @@ import { toast } from "@/components/ui/toast";
 import { useAuthStore, type Role } from "@/lib/auth-store";
 import { strings } from "@/lib/strings";
 import { ApiError } from "@/lib/api-client";
+import { assignableRoles, canSetTemporaryPassword } from "@/lib/roles";
 import { usersApi, type ManagedUser } from "@/lib/users-api";
-
-const ROLES: Role[] = ["OWNER", "ACCOUNTANT", "BUYER"];
+import { TemporaryPasswordDialog } from "./temporary-password-dialog";
 
 function InviteDialog({ onInvited }: { onInvited: () => void }) {
   const accessToken = useAuthStore((s) => s.accessToken);
+  const roles = assignableRoles(useAuthStore((s) => s.user?.role));
   const [open, setOpen] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [role, setRole] = React.useState<Role>("BUYER");
@@ -54,8 +55,8 @@ function InviteDialog({ onInvited }: { onInvited: () => void }) {
       <DialogContent>
         <DialogTitle>{strings.users.inviteDialogTitle}</DialogTitle>
         <DialogDescription>
-          They receive a link, set their own password, and enrol MFA on first login. You never set or see anyone
-          else&apos;s password.
+          They receive a link, set their own password, and enrol MFA on first login. If someone is locked out you can
+          set a one-off temporary password for them from this list; they must change it at their next sign-in.
         </DialogDescription>
         <form className="mt-4 flex flex-col gap-4" onSubmit={handleSubmit}>
           <div className="flex flex-col gap-1.5">
@@ -76,7 +77,7 @@ function InviteDialog({ onInvited }: { onInvited: () => void }) {
               value={role}
               onChange={(e) => setRole(e.target.value as Role)}
             >
-              {ROLES.map((r) => (
+              {roles.map((r) => (
                 <option key={r} value={r}>
                   {strings.shell.roleLabels[r]}
                 </option>
@@ -108,6 +109,8 @@ function statusVariant(status: ManagedUser["invite_status"]) {
 export function UsersTable() {
   const accessToken = useAuthStore((s) => s.accessToken);
   const currentUserId = useAuthStore((s) => s.user?.id);
+  const viewerRole = useAuthStore((s) => s.user?.role);
+  const roles = assignableRoles(viewerRole);
   const [users, setUsers] = React.useState<ManagedUser[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [busyId, setBusyId] = React.useState<string | null>(null);
@@ -202,7 +205,7 @@ export function UsersTable() {
                     disabled={busyId === user.id}
                     onChange={(e) => handleRoleChange(user, e.target.value as Role)}
                   >
-                    {ROLES.map((r) => (
+                    {roles.map((r) => (
                       <option key={r} value={r}>
                         {strings.shell.roleLabels[r]}
                       </option>
@@ -210,41 +213,58 @@ export function UsersTable() {
                   </select>
                 </td>
                 <td className="px-4 py-3">
-                  <Badge variant={statusVariant(user.invite_status)}>{user.invite_status}</Badge>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={statusVariant(user.invite_status)}>{user.invite_status}</Badge>
+                    {user.must_change_password ? (
+                      <Badge variant="close">{strings.users.mustChangeBadge}</Badge>
+                    ) : null}
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-fg-secondary">
                   {user.last_login_at ? <DateTime value={user.last_login_at} /> : strings.users.never}
                 </td>
-                <td className="px-4 py-3 text-right">
-                  {user.invite_status === "DEACTIVATED" ? (
-                    <Button size="sm" variant="secondary" disabled={busyId === user.id} onClick={() => handleReactivate(user)}>
-                      {strings.users.reactivate}
-                    </Button>
-                  ) : (
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button size="sm" variant="danger" disabled={busyId === user.id}>
-                          {strings.users.deactivate}
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogTitle>
-                          {strings.users.deactivate} {user.email}?
-                        </DialogTitle>
-                        <DialogDescription>{strings.users.deactivateConfirm}</DialogDescription>
-                        <div className="mt-4 flex justify-end gap-2">
-                          <DialogClose asChild>
-                            <Button variant="secondary">Cancel</Button>
-                          </DialogClose>
-                          <DialogClose asChild>
-                            <Button variant="danger" onClick={() => handleDeactivate(user)}>
-                              {strings.users.deactivate}
-                            </Button>
-                          </DialogClose>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  )}
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <TemporaryPasswordDialog
+                      user={user}
+                      disabled={
+                        busyId === user.id ||
+                        user.id === currentUserId ||
+                        user.invite_status !== "ACTIVE" ||
+                        !canSetTemporaryPassword(viewerRole, user.role)
+                      }
+                      onDone={load}
+                    />
+                    {user.invite_status === "DEACTIVATED" ? (
+                      <Button size="sm" variant="secondary" disabled={busyId === user.id} onClick={() => handleReactivate(user)}>
+                        {strings.users.reactivate}
+                      </Button>
+                    ) : (
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button size="sm" variant="danger" disabled={busyId === user.id}>
+                            {strings.users.deactivate}
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogTitle>
+                            {strings.users.deactivate} {user.email}?
+                          </DialogTitle>
+                          <DialogDescription>{strings.users.deactivateConfirm}</DialogDescription>
+                          <div className="mt-4 flex justify-end gap-2">
+                            <DialogClose asChild>
+                              <Button variant="secondary">Cancel</Button>
+                            </DialogClose>
+                            <DialogClose asChild>
+                              <Button variant="danger" onClick={() => handleDeactivate(user)}>
+                                {strings.users.deactivate}
+                              </Button>
+                            </DialogClose>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

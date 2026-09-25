@@ -7,6 +7,8 @@
  */
 export const strings = {
   auth: {
+    showPassword: "Show password",
+    hidePassword: "Hide password",
     login: {
       title: "Sign in",
       emailLabel: "Email",
@@ -36,6 +38,36 @@ export const strings = {
       ACCOUNT_NOT_ACTIVE: "This account is not active.",
       RATE_LIMITED: "Too many attempts. Please wait a moment and try again.",
       INVALID_TOKEN: "This link is invalid or has expired.",
+      PASSWORD_CHANGE_REQUIRED: "Choose a new password to continue.",
+    },
+  },
+  profile: {
+    navLabel: "Profile",
+    title: "Profile",
+    account: "Account",
+    email: "Email",
+    role: "Role",
+    mfa: "Two-factor authentication",
+    mfaOn: "Enrolled",
+    mfaOff: "Not enrolled",
+    lastSignIn: "Last sign-in",
+    never: "Never",
+    password: {
+      title: "Change password",
+      hint: "At least 12 characters. You'll stay signed in on this device.",
+      current: "Current password",
+      new: "New password",
+      confirm: "Confirm new password",
+      submit: "Change password",
+      submitting: "Changing…",
+      mismatch: "The new passwords don't match.",
+      success: "Password changed.",
+      wrongCurrent: "Your current password is incorrect.",
+      generic: "Could not change the password. Please try again.",
+    },
+    forced: {
+      title: "Choose a new password",
+      body: "An administrator set a temporary password for your account. Choose your own password to continue — nothing else is available until you do.",
     },
   },
   shell: {
@@ -44,6 +76,7 @@ export const strings = {
       OWNER: "Owner",
       ACCOUNTANT: "Accountant",
       BUYER: "Buyer",
+      PLATFORM_ADMIN: "Platform Admin",
     },
     emptyState: {
       title: "Nothing here yet",
@@ -468,6 +501,23 @@ export const strings = {
     reactivate: "Reactivate",
     deactivateConfirm: "Revokes all active sessions immediately. Their upload and publication history is kept.",
     lastOwnerGuard: "Cannot deactivate the platform's last remaining active Owner.",
+    setTemporaryPassword: "Set temporary password",
+    mustChangeBadge: "Must change password",
+    temporaryPassword: {
+      title: "Set a temporary password",
+      description:
+        "Signs them out everywhere and makes them choose their own password at next sign-in. Give them this password securely — it is shown only here, and never stored in readable form.",
+      label: "Temporary password",
+      generate: "Generate",
+      copy: "Copy",
+      copied: "Copied",
+      submit: "Set temporary password",
+      submitting: "Setting…",
+      doneTitle: "Temporary password set",
+      doneBody: "Copy it now and pass it on. It can't be shown again — set another one if you lose it.",
+      close: "Done",
+      notActive: "Only an active user can be given a temporary password.",
+    },
   },
   theme: {
     toggleLabel: "Theme",

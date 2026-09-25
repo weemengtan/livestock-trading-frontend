@@ -2,9 +2,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useAuthStore, type Role } from "@/lib/auth-store";
-
-const ROLE_HOME: Record<Role, string> = { OWNER: "/owner", ACCOUNTANT: "/accountant", BUYER: "/buyer" };
+import { useAuthStore } from "@/lib/auth-store";
+import { ROLE_HOME } from "@/lib/roles";
 
 export default function Home() {
   const router = useRouter();
@@ -15,7 +14,7 @@ export default function Home() {
   }, [status, hydrate]);
 
   React.useEffect(() => {
-    if (status === "authenticated" && user) router.replace(ROLE_HOME[user.role]);
+    if (status === "authenticated" && user) router.replace(user.mustChangePassword ? "/profile" : ROLE_HOME[user.role]);
     if (status === "unauthenticated") router.replace("/login");
   }, [status, user, router]);
 

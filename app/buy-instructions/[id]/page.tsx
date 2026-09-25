@@ -15,6 +15,7 @@ import { Toggle } from "@/components/ui/toggle";
 import { toast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api-client";
 import { useAuthStore } from "@/lib/auth-store";
+import { isOwnerLevel } from "@/lib/roles";
 import { strings } from "@/lib/strings";
 import {
   buyInstructionsApi,
@@ -217,7 +218,7 @@ function BuyInstructionDetailContent({ id }: { id: string }) {
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={instruction.status === "RECONCILED" ? "pass" : "accent"}>{instruction.status}</Badge>
-          {instruction.status === "DRAFT" && role === "OWNER" && !instruction.approved_by ? (
+          {instruction.status === "DRAFT" && isOwnerLevel(role) && !instruction.approved_by ? (
             <Button size="sm" onClick={handleApprove} disabled={busy === "approve"}>
               {busy === "approve" ? strings.buyInstructions.approving : strings.buyInstructions.approve}
             </Button>

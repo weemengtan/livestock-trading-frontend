@@ -6,14 +6,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Card } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
 import { apiFetch, ApiError } from "@/lib/api-client";
-import { useAuthStore, type Role } from "@/lib/auth-store";
+import { useAuthStore } from "@/lib/auth-store";
+import { ROLE_HOME } from "@/lib/roles";
 import { strings } from "@/lib/strings";
 
 type AcceptInviteResponse = { access_token: string; mfa_required: boolean; totp_provisioning_uri: string | null };
-const ROLE_HOME: Record<Role, string> = { OWNER: "/owner", ACCOUNTANT: "/accountant", BUYER: "/buyer" };
 
 function AcceptInviteForm() {
   const router = useRouter();
@@ -109,9 +110,8 @@ function AcceptInviteForm() {
       <h1 className="text-xl font-semibold text-fg-primary">{strings.auth.acceptInvite.title}</h1>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="password">{strings.auth.acceptInvite.passwordLabel}</Label>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="new-password"
           required
           minLength={12}

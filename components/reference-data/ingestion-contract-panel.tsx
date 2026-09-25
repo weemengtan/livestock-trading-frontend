@@ -25,6 +25,7 @@ import {
   type IngestionContractRecord,
   type NewIngestionContract,
 } from "@/lib/ingestion-contracts-api";
+import { isOwnerLevel } from "@/lib/roles";
 import { strings } from "@/lib/strings";
 import { withErrorToast } from "@/lib/with-error-toast";
 
@@ -274,7 +275,7 @@ function FieldsTable({ contract, fields }: { contract: IngestionContractRecord; 
 
 export function IngestionContractPanel() {
   const accessToken = useAuthStore((s) => s.accessToken);
-  const isOwner = useAuthStore((s) => s.user?.role) === "OWNER";
+  const isOwner = isOwnerLevel(useAuthStore((s) => s.user?.role));
   const [contracts, setContracts] = React.useState<IngestionContractRecord[]>([]);
   const [fields, setFields] = React.useState<string[]>([]);
   const [loading, setLoading] = React.useState(true);

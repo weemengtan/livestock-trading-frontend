@@ -14,6 +14,7 @@ export type ManagedUser = {
   org_id: string;
   invite_status: InviteStatus;
   mfa_enrolled: boolean;
+  must_change_password: boolean;
   created_at: string;
   last_login_at: string | null;
 };
@@ -28,4 +29,10 @@ export const usersApi = {
     apiFetch<ManagedUser>(`/users/${id}/deactivate`, { method: "POST", ...auth(accessToken) }),
   reactivate: (id: string, accessToken: string | null) =>
     apiFetch<ManagedUser>(`/users/${id}/reactivate`, { method: "POST", ...auth(accessToken) }),
+  setTemporaryPassword: (id: string, temporaryPassword: string, accessToken: string | null) =>
+    apiFetch<ManagedUser>(`/users/${id}/temporary-password`, {
+      method: "POST",
+      body: { temporary_password: temporaryPassword },
+      ...auth(accessToken),
+    }),
 };

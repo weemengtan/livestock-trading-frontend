@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ThemeToggle, type Theme } from "@/components/theme-toggle";
 import { cn } from "@/lib/cn";
 import { useAuthStore } from "@/lib/auth-store";
+import { isConsoleRole, isOwnerLevel } from "@/lib/roles";
 import { strings } from "@/lib/strings";
 
 // §11's Trading Console screens, plus the Users screen which is OWNER-only
@@ -29,12 +30,12 @@ const _CONSOLE_NAV = [
 function ConsoleNav() {
   const pathname = usePathname();
   const role = useAuthStore((s) => s.user?.role);
-  if (role !== "OWNER" && role !== "ACCOUNTANT") return null;
+  if (!isConsoleRole(role)) return null;
 
   return (
     <nav className="flex items-center gap-1">
-      {_CONSOLE_NAV.filter((item) => !item.ownerOnly || role === "OWNER").map((item) => {
-        const target = item.href === "/owner" ? (role === "OWNER" ? "/owner" : "/accountant") : item.href;
+      {_CONSOLE_NAV.filter((item) => !item.ownerOnly || isOwnerLevel(role)).map((item) => {
+        const target = item.href === "/owner" ? (isOwnerLevel(role) ? "/owner" : "/accountant") : item.href;
         const active =
           pathname === target ||
           ((item.href === "/workbench" || item.href === "/buy-instructions") && pathname?.startsWith(item.href));
@@ -100,7 +101,22 @@ export function AppShell({ title, children }: { title: string; children: React.R
               </Link>
             ) : null}
             <ThemeToggle defaultTheme={defaultTheme} />
-            {user ? <span className="hidden text-sm text-fg-secondary sm:inline">{user.email}</span> : null}
+            {user ? (
+              <Link
+                href="/profile"
+                aria-current={pathname === "/profile" ? "page" : undefined}
+                title={strings.profile.navLabel}
+                className={cn(
+                  "rounded-md px-2 py-1 text-sm transition-colors",
+                  pathname === "/profile"
+                    ? "bg-accent-subtle text-accent-default"
+                    : "text-fg-secondary hover:bg-sunken hover:text-fg-primary"
+                )}
+              >
+                <span className="hidden sm:inline">{user.email}</span>
+                <span className="sm:hidden">{strings.profile.navLabel}</span>
+              </Link>
+            ) : null}
             <Button variant="secondary" size="sm" onClick={handleSignOut}>
               {strings.shell.signOut}
             </Button>

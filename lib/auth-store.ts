@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { apiFetch, ApiError, setAuthRefreshHandler } from "./api-client";
 
-export type Role = "OWNER" | "ACCOUNTANT" | "BUYER";
+export type Role = "OWNER" | "ACCOUNTANT" | "BUYER" | "PLATFORM_ADMIN";
 
 export type CurrentUser = {
   id: string;
@@ -9,9 +9,20 @@ export type CurrentUser = {
   role: Role;
   orgId: string;
   mfaEnrolled: boolean;
+  /** True while the account is on an admin-issued temporary password. */
+  mustChangePassword: boolean;
+  lastLoginAt: string | null;
 };
 
-type MeResponse = { id: string; email: string; role: Role; org_id: string; mfa_enrolled: boolean };
+type MeResponse = {
+  id: string;
+  email: string;
+  role: Role;
+  org_id: string;
+  mfa_enrolled: boolean;
+  must_change_password?: boolean;
+  last_login_at?: string | null;
+};
 type TokenPair = { access_token: string; token_type: string };
 
 type AuthState = {
@@ -42,7 +53,15 @@ type AuthState = {
 };
 
 function toCurrentUser(me: MeResponse): CurrentUser {
-  return { id: me.id, email: me.email, role: me.role, orgId: me.org_id, mfaEnrolled: me.mfa_enrolled };
+  return {
+    id: me.id,
+    email: me.email,
+    role: me.role,
+    orgId: me.org_id,
+    mfaEnrolled: me.mfa_enrolled,
+    mustChangePassword: me.must_change_password ?? false,
+    lastLoginAt: me.last_login_at ?? null,
+  };
 }
 
 // Reads the access token's own "exp" claim rather than hardcoding the
