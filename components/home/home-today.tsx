@@ -6,7 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
+import Link from "next/link";
 import { useAuthStore } from "@/lib/auth-store";
+import { isOwnerLevel } from "@/lib/roles";
+import { summariseReviewQueue } from "@/lib/review-queue";
 import { publicationsApi, type PublicationDetail } from "@/lib/publications-api";
 import { strings } from "@/lib/strings";
 import { workbenchApi, type Snapshot, type ValidationIssue } from "@/lib/workbench-api";
@@ -89,6 +92,7 @@ function StatTile({
 
 export function HomeToday() {
   const accessToken = useAuthStore((s) => s.accessToken);
+  const ownerLevel = isOwnerLevel(useAuthStore((s) => s.user?.role));
   const [now, setNow] = React.useState<Date | null>(() => melbourneNow());
   const [snapshot, setSnapshot] = React.useState<Snapshot | null>(null);
   const [activeCount, setActiveCount] = React.useState(0);
@@ -159,11 +163,16 @@ export function HomeToday() {
     (i) => (i.severity === "WARN" || i.severity === "CORRECTION") && !i.acknowledged_at
   );
 
+  const queue = summariseReviewQueue(activeIssues);
+  const a = strings.home.approval;
+  const showQueue =
+    snapshot.status === "CALCULATED" && !hasBlock && (queue.awaitingOwner > 0 || queue.rejected > 0);
+
   const blockers: Record<Step, string | null> = {
     receive: receivedToday ? null : "No submission received today",
     validate: hasBlock ? "One or more active lines blocked" : null,
     calculate: snapshot.status === "PARSED" ? "Not yet calculated" : null,
-    review: unacknowledged.length > 0 ? `${unacknowledged.length} issue(s) need acknowledgement` : null,
+    review: unacknowledged.length > 0 ? `${unacknowledged.length} issue(s) need approval` : null,
     publish: snapshot.status !== "PUBLISHED" && snapshot.status !== "SUPERSEDED" ? "Not yet published" : null,
   };
 
@@ -187,6 +196,40 @@ export function HomeToday() {
           {countdown.label}
         </p>
       </Card>
+
+      {showQueue ? (
+        <Card className="border-l-4 border-status-close-border bg-status-close-bg">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              {queue.awaitingOwner > 0 ? (
+                <div>
+                  <p className="text-sm font-semibold text-status-close-fg">
+                    ▲ {ownerLevel ? a.ownerTitle : a.accountantTitle}
+                  </p>
+                  <p className="text-sm text-fg-secondary">
+                    {(ownerLevel ? a.ownerBody : a.accountantBody).replace("{count}", String(queue.awaitingOwner))}
+                    {ownerLevel && queue.recommended > 0
+                      ? ` ${a.ownerRecommended.replace("{count}", String(queue.recommended))}`
+                      : ""}
+                  </p>
+                </div>
+              ) : null}
+              {queue.rejected > 0 ? (
+                <div>
+                  <p className="text-sm font-semibold text-status-breach-fg">{a.rejectedTitle}</p>
+                  <p className="text-sm text-fg-secondary">{a.rejectedBody.replace("{count}", String(queue.rejected))}</p>
+                </div>
+              ) : null}
+            </div>
+            <Link
+              href={`/workbench/${snapshot.id}`}
+              className="rounded-md bg-accent-default px-3 py-1.5 text-sm font-medium text-accent-fg hover:bg-accent-hover"
+            >
+              {a.open}
+            </Link>
+          </div>
+        </Card>
+      ) : null}
 
       <Card>
         <p className="flex items-center gap-1.5 text-sm font-semibold text-fg-primary">

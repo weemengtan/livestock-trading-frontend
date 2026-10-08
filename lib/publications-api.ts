@@ -1,5 +1,35 @@
 import { apiFetch } from "./api-client";
 import { TicketSocket } from "./ws-client";
+import type { ValidationIssue } from "./workbench-api";
+
+export type ReviewIssuesBody = {
+  issue_ids: string[];
+  decision: "APPROVE" | "REJECT";
+  reason_code?: string | null;
+  remark: string;
+};
+
+/** One row of a snapshot's review trail, straight from the append-only audit log. */
+export type ReviewAuditEntry = {
+  id: string;
+  action: "issue_review.recommended" | "issue_review.approved" | "issue_review.rejected";
+  at: string;
+  actor_email: string | null;
+  after: {
+    issue_id: string;
+    line_no: number | null;
+    contract_no: string | null;
+    issue_code: string;
+    tier: "RECOMMENDATION" | "FINAL";
+    decision: "APPROVE" | "REJECT";
+    reason_code: string | null;
+    remark: string;
+    actor_role: string;
+    self_approved: boolean;
+    overrides_recommendation: boolean;
+    figures: Record<string, string | null>;
+  } | null;
+};
 
 export type PublicationLine = {
   id: string;
@@ -75,17 +105,19 @@ export const publicationsApi = {
   getCurrentProgress: (accessToken: string | null) =>
     apiFetch<SpeciesProgress>("/publications/current/progress", auth(accessToken)),
 
-  acknowledgeIssue: (snapshotId: string, issueId: string, accessToken: string | null) =>
-    apiFetch<unknown>(`/snapshots/${snapshotId}/issues/${issueId}/acknowledge`, { method: "POST", ...auth(accessToken) }),
-
   // One request for the whole selection — a snapshot can carry hundreds of
   // issues, and one call each would blow past the backend's general rate limit.
-  acknowledgeIssues: (snapshotId: string, issueIds: string[], accessToken: string | null) =>
-    apiFetch<unknown>(`/snapshots/${snapshotId}/issues/acknowledge`, {
+  // The caller's role decides the tier server-side: an OWNER's decision is final,
+  // an ACCOUNTANT's is a recommendation.
+  reviewIssues: (snapshotId: string, body: ReviewIssuesBody, accessToken: string | null) =>
+    apiFetch<ValidationIssue[]>(`/snapshots/${snapshotId}/issues/review`, {
       method: "POST",
-      body: { issue_ids: issueIds },
+      body,
       ...auth(accessToken),
     }),
+
+  listReviewAudit: (snapshotId: string, accessToken: string | null) =>
+    apiFetch<ReviewAuditEntry[]>(`/snapshots/${snapshotId}/review-audit`, auth(accessToken)),
 
   getWsTicket: (accessToken: string | null) => apiFetch<{ ticket: string }>("/ws/ticket", { method: "POST", ...auth(accessToken) }),
 };

@@ -147,19 +147,21 @@ function WorkbenchContent({ snapshotId }: { snapshotId: string }) {
         <PublishPanel
           snapshotId={snapshot.id}
           snapshotStatus={snapshot.status}
+          snapshotUploadedBy={snapshot.uploaded_by}
           activeLineIds={activeLineIds}
           generateHeldBack={!modelGuard.canGenerateInstruction}
           canRecalculate={modelGuard.canRecalculate}
           issuesByLineId={issuesByLineId}
           lineById={lineById}
-          onIssuesAcknowledged={(issueIds) => {
-            const acknowledged = new Set(issueIds);
+          workingsByLineId={workingsByLineId}
+          onIssuesUpdated={(updated) => {
+            const byId = new Map(updated.map((issue) => [issue.id, issue] as const));
             setIssuesByLineId((prev) => {
               const next = new Map<string, ValidationIssue[]>();
               for (const [lineId, issues] of prev) {
                 next.set(
                   lineId,
-                  issues.filter((issue) => !acknowledged.has(issue.id)),
+                  issues.map((issue) => byId.get(issue.id) ?? issue),
                 );
               }
               return next;

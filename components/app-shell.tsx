@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/cn";
 import { useAuthStore } from "@/lib/auth-store";
+import { useReviewQueue } from "@/lib/use-review-queue";
 import { isConsoleRole, isOwnerLevel } from "@/lib/roles";
 import { strings } from "@/lib/strings";
 
@@ -30,7 +31,10 @@ const _CONSOLE_NAV = [
 function ConsoleNav() {
   const pathname = usePathname();
   const role = useAuthStore((s) => s.user?.role);
+  const ownerLevel = isOwnerLevel(role);
+  const reviewState = useReviewQueue(ownerLevel, pathname);
   if (!isConsoleRole(role)) return null;
+  const awaitingApproval = reviewState?.queue.awaitingOwner ?? 0;
 
   return (
     <nav className="flex items-center gap-1">
@@ -49,6 +53,15 @@ function ConsoleNav() {
             )}
           >
             {item.label()}
+            {item.href === "/workbench" && awaitingApproval > 0 ? (
+              <span
+                className="ml-1.5 rounded-full bg-status-close-bg px-1.5 py-0.5 text-xs font-semibold text-status-close-fg"
+                title={strings.home.approval.ownerBody.replace("{count}", String(awaitingApproval))}
+                aria-label={strings.home.approval.ownerBody.replace("{count}", String(awaitingApproval))}
+              >
+                {awaitingApproval}
+              </span>
+            ) : null}
           </Link>
         );
       })}

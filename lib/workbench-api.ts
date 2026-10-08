@@ -121,9 +121,35 @@ export type ValidationIssue = {
   severity: IssueSeverity;
   message: string;
   column_ref: string | null;
+  /** The OWNER's final approval — what lets a publication proceed. */
   acknowledged_by: string | null;
+  acknowledged_by_email: string | null;
   acknowledged_at: string | null;
   carried_forward: boolean;
+  approval_reason_code: string | null;
+  approval_remark: string | null;
+  /** When this approval stops carrying onto later snapshots. */
+  approval_expires_at: string | null;
+  /** The ACCOUNTANT's advisory call — never clears the warning on its own. */
+  recommendation: IssueRecommendation | null;
+  /** The OWNER's rejection: the line must be fixed and recalculated. */
+  rejection: IssueRejection | null;
+};
+
+export type IssueRecommendation = {
+  decision: "APPROVE" | "REJECT";
+  reason_code: string | null;
+  remark: string | null;
+  by: string;
+  by_email: string | null;
+  at: string;
+};
+
+export type IssueRejection = {
+  remark: string | null;
+  by: string;
+  by_email: string | null;
+  at: string;
 };
 
 export type CorrectionRequest = {
